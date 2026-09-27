@@ -1,4 +1,4 @@
-const BASE = (import.meta.env.VITE_API_URL || '') + '/api/public';
+const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '') + '/api/public';
 export const APP_URL = (import.meta.env.VITE_APP_URL || 'http://localhost:5173').replace(/\/$/, '');
 
 export async function api(path, body) {
