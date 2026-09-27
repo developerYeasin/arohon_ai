@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "আরোহণ",
+    "slug": "arohon",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.arohon.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1535",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "ai.arohon.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "arohon"
+  }
+}
