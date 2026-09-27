@@ -8,8 +8,9 @@ import { bn, fmtDate, TRACKS } from '../utils.js';
 
 export default function Admin() {
   const { user } = useAuth();
-  const tabs = [...(user.role === 'admin' ? [['payments', 'পেমেন্ট']] : []), ['students', 'শিক্ষার্থী'], ['expert', 'লিখিত মূল্যায়ন'], ['prep', 'লিখিত/ভাইভা কনটেন্ট'], ['questions', 'প্রশ্নব্যাংক'], ['reports', 'রিপোর্ট'], ['quality', 'প্রশ্নের মান'], ['live', 'লাইভ এক্সাম'], ['ca', 'সাম্প্রতিক'], ['overview', 'সারসংক্ষেপ']];
-  const [tab, setTab] = useState(user.role === 'teacher' ? 'students' : 'overview');
+  const tabs = [['questions', '📝 প্রশ্নব্যাংক'], ...(user.role === 'admin' ? [['payments', 'পেমেন্ট']] : []), ['students', 'শিক্ষার্থী'], ['expert', 'লিখিত মূল্যায়ন'], ['prep', 'লিখিত/ভাইভা কনটেন্ট'], ['reports', 'রিপোর্ট'], ['quality', 'প্রশ্নের মান'], ['live', 'লাইভ এক্সাম'], ['ca', 'সাম্প্রতিক'], ['overview', 'সারসংক্ষেপ']];
+  // Most visits are to manage questions, so the bank opens first.
+  const [tab, setTab] = useState('questions');
   return (
     <div>
       <div className="page-head"><div><h1>🛠️ {user.role === 'admin' ? 'অ্যাডমিন প্যানেল' : 'শিক্ষক ড্যাশবোর্ড'}</h1><p>কনটেন্ট, মান নিয়ন্ত্রণ ও শিক্ষার্থী অগ্রগতি</p></div></div>
