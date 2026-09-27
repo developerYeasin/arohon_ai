@@ -10,14 +10,20 @@ import { dhakaToday } from '../services/util.js';
 import { subjects, exams, questions, currentAffairs } from './data.js';
 import { seedPrep } from './seed-prep.js';
 
-const TABLES = ['ama_votes', 'ama_questions', 'ama_sessions', 'topper_stories', 'creator_payouts', 'product_reviews', 'purchases', 'product_questions', 'products', 'creator_profiles', 'battle_answers', 'battles', 'group_assignments', 'group_posts', 'group_members', 'study_groups', 'viva_answers', 'viva_sessions', 'viva_questions', 'peer_reviews', 'written_submissions', 'written_prompts', 'user_badges', 'otp_codes', 'subscriptions', 'payments', 'plans', 'coach_messages', 'discussion_votes', 'discussions', 'question_reports', 'bookmarks', 'daily_missions', 'review_items',
+const TABLES = ['public_qotd_answers', 'public_plays', 'ama_votes', 'ama_questions', 'ama_sessions', 'topper_stories', 'creator_payouts', 'product_reviews', 'purchases', 'product_questions', 'products', 'creator_profiles', 'battle_answers', 'battles', 'group_assignments', 'group_posts', 'group_members', 'study_groups', 'viva_answers', 'viva_sessions', 'viva_questions', 'peer_reviews', 'written_submissions', 'written_prompts', 'user_badges', 'otp_codes', 'subscriptions', 'payments', 'plans', 'coach_messages', 'discussion_votes', 'discussions', 'question_reports', 'bookmarks', 'daily_missions', 'review_items',
   'attempt_answers', 'attempts', 'test_questions', 'tests', 'question_versions', 'questions', 'current_affairs', 'topics',
   'exam_subjects', 'subjects', 'exams', 'users'];
 
 const SOURCE = 'নমুনা প্রশ্ন — আরোহণ কনটেন্ট টিম';
 
 async function insertQuestion(subjectId, topicId, row, extra = {}) {
-  const [body, a, b, c, d, correct, explanation, difficulty] = row;
+  const [body, a0, b0, c0, d0, correct0, explanation, difficulty] = row;
+  // Shuffle option order (deterministically per question) so correct answers are spread across ক/খ/গ/ঘ.
+  const opts = [['a', a0], ['b', b0], ['c', c0], ['d', d0]];
+  let h = 0; for (const ch of body) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  for (let i = 3; i > 0; i--) { h = (h * 1664525 + 1013904223) >>> 0; const j = h % (i + 1); [opts[i], opts[j]] = [opts[j], opts[i]]; }
+  const [a, b, c, d] = opts.map((o) => o[1]);
+  const correct = 'abcd'[opts.findIndex((o) => o[0] === correct0)];
   const ins = await query('INSERT INTO questions SET ?', [{ subject_id: subjectId, topic_id: topicId, body, option_a: a, option_b: b, option_c: c, option_d: d,
     correct_option: correct, explanation, difficulty, source: SOURCE, last_verified_at: dhakaToday(), ...extra }]);
   await query('INSERT INTO question_versions (question_id, version, snapshot, change_note) VALUES (?,1,?,?)',
@@ -26,6 +32,14 @@ async function insertQuestion(subjectId, topicId, row, extra = {}) {
 
 async function main() {
   if (process.argv.includes('--fresh')) {
+    // Wiping is irreversible and this database may be shared with a live site.
+    if (process.env.NODE_ENV === 'production') throw new Error('--fresh is disabled when NODE_ENV=production');
+    if (!process.argv.includes('--yes-delete-everything')) {
+      console.error(`Refusing to wipe ${process.env.DB_HOST}/${process.env.DB_NAME}. This deletes ALL users, payments and results.`);
+      console.error('If you are sure this is not a live database, run: npm run seed -- --fresh --yes-delete-everything');
+      process.exitCode = 1;
+      return;
+    }
     await query('SET FOREIGN_KEY_CHECKS=0');
     for (const t of TABLES) await query(`DROP TABLE IF EXISTS ${t}`);
     await query('SET FOREIGN_KEY_CHECKS=1');

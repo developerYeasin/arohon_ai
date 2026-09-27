@@ -1,41 +1,88 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { useFetch, Loader, ErrorBox, Empty, Modal } from '../components/ui.jsx';
 import { REPORT_REASONS } from '../components/QuestionTools.jsx';
 import { bn, fmtDate, TRACKS } from '../utils.js';
 
+// Staff navigation. `roles` controls who sees each section; the layout builds its menu from this.
+export const STAFF_SECTIONS = [
+  { group: null, items: [{ key: 'overview', icon: '📊', label: 'ড্যাশবোর্ড', roles: ['admin', 'teacher'] }] },
+  { group: 'কনটেন্ট', items: [
+    { key: 'questions', icon: '📝', label: 'প্রশ্নব্যাংক', roles: ['admin', 'teacher'] },
+    { key: 'prep', icon: '✍️', label: 'লিখিত ও ভাইভা কনটেন্ট', roles: ['admin', 'teacher'] },
+    { key: 'live', icon: '🔴', label: 'লাইভ এক্সাম', roles: ['admin', 'teacher'] },
+    { key: 'ca', icon: '📰', label: 'সাম্প্রতিক বিষয়াবলি', roles: ['admin', 'teacher'] },
+  ] },
+  { group: 'মান নিয়ন্ত্রণ', items: [
+    { key: 'reports', icon: '⚠️', label: 'ভুল প্রশ্নের রিপোর্ট', roles: ['admin', 'teacher'] },
+    { key: 'quality', icon: '🔬', label: 'প্রশ্নের মান বিশ্লেষণ', roles: ['admin'] },
+  ] },
+  { group: 'শিক্ষার্থী', items: [
+    { key: 'students', icon: '👩‍🎓', label: 'শিক্ষার্থীদের অগ্রগতি', roles: ['admin', 'teacher'] },
+    { key: 'expert', icon: '🎓', label: 'লিখিত উত্তর মূল্যায়ন', roles: ['admin', 'teacher'] },
+    { key: 'groups', icon: '👥', label: 'আমার ব্যাচ', roles: ['teacher'], href: '/admin/groups' },
+  ] },
+  { group: 'ব্যবসা ও অ্যাকাউন্ট', items: [
+    { key: 'users', icon: '👤', label: 'ব্যবহারকারী ও role', roles: ['admin'] },
+    { key: 'market', icon: '🛒', label: 'মার্কেটপ্লেস ও ক্রিয়েটর', roles: ['admin'] },
+    { key: 'payments', icon: '💳', label: 'পেমেন্ট ও প্যাকেজ', roles: ['admin'] },
+  ] },
+];
+const PANELS = {
+  overview: () => <Overview />, questions: () => <Questions />, prep: () => <PrepContent />, live: () => <LiveAdmin />, ca: () => <CurrentAffairsAdmin />,
+  reports: () => <Reports />, quality: () => <Quality />, students: () => <Students />, expert: () => <ExpertQueue />, payments: () => <Payments />, users: () => <Users />, market: () => <MarketAdmin />,
+};
+
 export default function Admin() {
   const { user } = useAuth();
-  const tabs = [['questions', '📝 প্রশ্নব্যাংক'], ...(user.role === 'admin' ? [['payments', 'পেমেন্ট']] : []), ['students', 'শিক্ষার্থী'], ['expert', 'লিখিত মূল্যায়ন'], ['prep', 'লিখিত/ভাইভা কনটেন্ট'], ['reports', 'রিপোর্ট'], ['quality', 'প্রশ্নের মান'], ['live', 'লাইভ এক্সাম'], ['ca', 'সাম্প্রতিক'], ['overview', 'সারসংক্ষেপ']];
-  // Most visits are to manage questions, so the bank opens first.
-  const [tab, setTab] = useState('questions');
+  const { section = 'overview' } = useParams();
+  const item = STAFF_SECTIONS.flatMap((g) => g.items).find((i) => i.key === section);
+  if (!item || !item.roles.includes(user.role) || !PANELS[section]) return <Navigate to="/admin" replace />;
   return (
     <div>
-      <div className="page-head"><div><h1>🛠️ {user.role === 'admin' ? 'অ্যাডমিন প্যানেল' : 'শিক্ষক ড্যাশবোর্ড'}</h1><p>কনটেন্ট, মান নিয়ন্ত্রণ ও শিক্ষার্থী অগ্রগতি</p></div></div>
-      <div className="tabs">{tabs.map(([k, l]) => <button key={k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
-      {tab === 'overview' && <Overview />}
-      {tab === 'payments' && <Payments />}
-      {tab === 'expert' && <ExpertQueue />}
-      {tab === 'prep' && <PrepContent />}
-      {tab === 'students' && <Students />}
-      {tab === 'questions' && <Questions />}
-      {tab === 'reports' && <Reports />}
-      {tab === 'quality' && <Quality />}
-      {tab === 'live' && <LiveAdmin />}
-      {tab === 'ca' && <CurrentAffairsAdmin />}
+      <div className="page-head"><div><h1>{item.icon} {item.label}</h1></div></div>
+      {PANELS[section]()}
     </div>
   );
 }
 
+// Landing page for staff: what needs attention today, then the numbers.
 function Overview() {
+  const { user } = useAuth();
   const { data, loading } = useFetch('/admin/overview');
+  const { data: queue } = useFetch('/prep/expert/queue');
   if (loading || !data) return <Loader />;
-  const items = [['সক্রিয় প্রশ্ন', data.active_questions], ['পর্যালোচনাধীন', data.needs_review], ['খোলা রিপোর্ট', data.open_reports], ['মোট ব্যবহারকারী', data.users],
-    ['দৈনিক সক্রিয়', data.dau], ['সাপ্তাহিক সক্রিয়', data.wau], ['জমা দেওয়া টেস্ট', data.attempts], ['মোট উত্তর', data.answers],
-    ['যাচাইয়ের অপেক্ষায় পেমেন্ট', data.pending_payments], ['সক্রিয় সাবস্ক্রাইবার', data.active_subscribers], ['৩০ দিনের আয় (৳)', Number(data.revenue_30d)]];
-  return <div className="grid g4">{items.map(([l, v]) => <div key={l} className="card stat"><span className="v">{bn(v)}</span><span className="l">{l}</span></div>)}</div>;
+  const admin = user.role === 'admin';
+  const todo = [
+    [data.open_reports, 'টি প্রশ্নে শিক্ষার্থীরা ভুল রিপোর্ট করেছে', 'reports'],
+    [data.needs_review, 'টি প্রশ্ন সাময়িক বন্ধ — পর্যালোচনা দরকার', 'questions'],
+    [queue?.length || 0, 'টি লিখিত উত্তর বিশেষজ্ঞ মূল্যায়নের অপেক্ষায়', 'expert'],
+    ...(admin ? [[data.pending_payments, 'টি ম্যানুয়াল পেমেন্ট যাচাইয়ের অপেক্ষায়', 'payments']] : []),
+  ].filter(([n]) => n > 0);
+  const stats = [['সক্রিয় প্রশ্ন', data.active_questions], ['মোট ব্যবহারকারী', data.users], ['আজ সক্রিয়', data.dau], ['এই সপ্তাহে সক্রিয়', data.wau],
+    ['জমা দেওয়া টেস্ট', data.attempts], ['মোট উত্তর', data.answers],
+    ...(admin ? [['সক্রিয় সাবস্ক্রাইবার', data.active_subscribers], ['৩০ দিনের আয় (৳)', Number(data.revenue_30d)]] : [])];
+  return (
+    <div className="stack">
+      <div className="card">
+        <h3>✅ আজকের করণীয়</h3>
+        {!todo.length ? <p className="muted small" style={{ margin: 0 }}>সব কাজ হালনাগাদ — অপেক্ষমাণ কিছু নেই।</p> : todo.map(([n, t, k]) => (
+          <div key={k} className="row between" style={{ padding: '.45rem 0', borderBottom: '1px dashed var(--line)' }}>
+            <span><b>{bn(n)}</b>{t}</span><Link className="btn sm" to={`/admin/${k}`}>দেখুন</Link>
+          </div>
+        ))}
+      </div>
+      <div className="grid g4">{stats.map(([l, v]) => <div key={l} className="card stat"><span className="v">{bn(v)}</span><span className="l">{l}</span></div>)}</div>
+      <div className="card row">
+        <b>দ্রুত কাজ:</b>
+        <Link className="btn sm" to="/admin/questions">+ নতুন প্রশ্ন</Link>
+        <Link className="btn ghost sm" to="/admin/live">লাইভ এক্সাম তৈরি</Link>
+        <Link className="btn ghost sm" to="/admin/ca">সাম্প্রতিক বিষয় যোগ</Link>
+      </div>
+    </div>
+  );
 }
 
 function Students() {
@@ -206,7 +253,7 @@ function Reports() {
               <button className="btn sm" onClick={() => resolve(r, 'fixed')}>সংশোধিত হিসেবে বন্ধ করুন</button>
               <button className="btn ghost sm" onClick={() => resolve(r, 'verified_ok')}>প্রশ্ন সঠিক</button>
               <button className="btn light sm" onClick={() => resolve(r, 'rejected')}>বাতিল</button>
-              <Link className="small" to={`/app/question/${r.question_id}`}>প্রশ্ন পাতা</Link>
+              <Link className="small" to={`/admin/question/${r.question_id}`}>প্রশ্ন পাতা</Link>
             </div>
           </> : r.resolution_note && <div className="small muted mt">সমাধান: {r.resolution_note}</div>}
         </div>
@@ -228,7 +275,7 @@ function Quality() {
           <thead><tr><th>প্রশ্ন</th><th>উত্তর</th><th>সঠিক %</th><th>বাদ %</th><th>গড় সময়</th><th>কঠিনতা (লেবেল/বাস্তব)</th><th>বিভাজন</th><th>সাধারণ ভুল</th><th>সতর্কতা</th></tr></thead>
           <tbody>{data.map((q) => (
             <tr key={q.id}>
-              <td className="small"><Link to={`/app/question/${q.id}`}>{q.body}</Link><div className="tiny muted">{q.topic}</div></td>
+              <td className="small"><Link to={`/admin/question/${q.id}`}>{q.body}</Link><div className="tiny muted">{q.topic}</div></td>
               <td>{bn(q.attempts)}</td><td>{bn(q.accuracy)}%</td><td>{bn(q.skip_rate)}%</td><td>{bn(q.avg_sec)} সে.</td>
               <td>{bn(q.difficulty)} / {bn(q.empirical_difficulty)}</td><td>{q.discrimination != null ? bn(q.discrimination) : '—'}</td>
               <td>{q.common_wrong ? ({ a: 'ক', b: 'খ', c: 'গ', d: 'ঘ' })[q.common_wrong] : '—'}</td>
@@ -473,6 +520,216 @@ function PrepContent() {
           <button className="btn" onClick={saveV} disabled={!v.question}>যোগ করুন</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+const ROLE_BN = { student: 'শিক্ষার্থী', teacher: 'শিক্ষক', admin: 'অ্যাডমিন' };
+
+function Users() {
+  const { user: me } = useAuth();
+  const [q, setQ] = useState({ search: '', role: '', page: 1 });
+  const qs = new URLSearchParams(Object.entries(q).filter(([, v]) => v)).toString();
+  const { data, loading, reload } = useFetch(`/admin/users?${qs}`, [qs]);
+  const [create, setCreate] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [err, setErr] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const act = async (u, patch, done) => {
+    setErr(null); setMsg(null);
+    try { await api.put(`/admin/users/${u.id}`, patch); setMsg(done); reload(); } catch (e) { setErr(e.message); }
+  };
+  return (
+    <div className="stack">
+      {msg && <div className="alert good">{msg}</div>}<ErrorBox error={err} />
+      <div className="row">
+        <input className="input" style={{ maxWidth: 280 }} placeholder="নাম, ইমেইল বা মোবাইল…" value={q.search} onChange={(e) => setQ({ ...q, search: e.target.value, page: 1 })} />
+        <div className="chips">{[['', 'সবাই'], ['student', 'শিক্ষার্থী'], ['teacher', 'শিক্ষক'], ['admin', 'অ্যাডমিন']].map(([k, l]) => <button key={k} className={`chip ${q.role === k ? 'active' : ''}`} onClick={() => setQ({ ...q, role: k, page: 1 })}>{l}</button>)}</div>
+        <div className="spacer" />
+        <button className="btn" onClick={() => setCreate(true)}>+ নতুন শিক্ষক/অ্যাডমিন</button>
+      </div>
+      <div className="card table-wrap">
+        {loading && !data ? <Loader /> : !data?.rows.length ? <Empty title="কেউ পাওয়া যায়নি" /> : (
+          <table className="table">
+            <thead><tr><th>নাম</th><th>যোগাযোগ</th><th>role</th><th>পাস</th><th>শেষ সক্রিয়</th><th>অবস্থা</th><th /></tr></thead>
+            <tbody>{data.rows.map((u) => (
+              <tr key={u.id} style={u.is_active ? null : { opacity: 0.55 }}>
+                <td><b>{u.name}</b>{u.id === me.id && <span className="badge" style={{ marginLeft: 4 }}>আপনি</span>}<div className="tiny muted">{u.institution || u.district || ''}</div></td>
+                <td className="small">{u.email || u.phone}</td>
+                <td>
+                  <select className="input" style={{ width: 'auto', padding: '.3rem .5rem' }} value={u.role} disabled={u.id === me.id}
+                    onChange={(e) => act(u, { role: e.target.value }, `${u.name} এখন ${ROLE_BN[e.target.value]}`)}>
+                    {Object.entries(ROLE_BN).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                </td>
+                <td className="small">{u.pass_until ? `${fmtDate(u.pass_until)} পর্যন্ত` : u.trial_ends_at && new Date(u.trial_ends_at) > new Date() ? 'ট্রায়াল' : '—'}</td>
+                <td className="small">{u.last_active_date ? fmtDate(u.last_active_date) : '—'}</td>
+                <td>{u.is_active ? <span className="badge good">সক্রিয়</span> : <span className="badge bad">বন্ধ</span>}</td>
+                <td><button className="btn light sm" onClick={() => setEdit(u)}>আরও</button></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+        {data && <div className="row between mt small"><span className="muted">মোট {bn(data.total)} জন</span>
+          <div className="row"><button className="btn light sm" disabled={q.page <= 1} onClick={() => setQ({ ...q, page: q.page - 1 })}>←</button><span>পৃষ্ঠা {bn(q.page)}</span><button className="btn light sm" disabled={q.page * 30 >= data.total} onClick={() => setQ({ ...q, page: q.page + 1 })}>→</button></div></div>}
+      </div>
+      <Modal open={create} onClose={() => setCreate(false)} title="নতুন অ্যাকাউন্ট">{create && <CreateUser onDone={(m) => { setCreate(false); setMsg(m); reload(); }} />}</Modal>
+      <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.name || ''}>{edit && <UserActions u={edit} self={edit.id === me.id} onDone={(m) => { setEdit(null); setMsg(m); reload(); }} />}</Modal>
+    </div>
+  );
+}
+
+function CreateUser({ onDone }) {
+  const [f, setF] = useState({ name: '', login: '', password: '', role: 'teacher', institution: '' });
+  const [err, setErr] = useState(null);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const save = async () => {
+    setErr(null);
+    const id = f.login.trim();
+    const isPhone = /^\+?[0-9]{10,14}$/.test(id);
+    try {
+      await api.post('/admin/users', { name: f.name, password: f.password, role: f.role, institution: f.institution || null, ...(isPhone ? { phone: id } : { email: id }) });
+      onDone(`${f.name}-এর ${ROLE_BN[f.role]} অ্যাকাউন্ট তৈরি হয়েছে। লগইন তথ্য নিরাপদে তাঁকে পাঠান।`);
+    } catch (e) { setErr(e.message); }
+  };
+  return (
+    <div>
+      <ErrorBox error={err} />
+      <div className="chips mb">{['teacher', 'admin', 'student'].map((r) => <button key={r} className={`chip ${f.role === r ? 'active' : ''}`} onClick={() => setF({ ...f, role: r })}>{ROLE_BN[r]}</button>)}</div>
+      <div className="field"><label>নাম</label><input className="input" value={f.name} onChange={set('name')} /></div>
+      <div className="field"><label>ইমেইল অথবা মোবাইল</label><input className="input" value={f.login} onChange={set('login')} /></div>
+      <div className="field"><label>প্রাথমিক পাসওয়ার্ড</label><input className="input" value={f.password} onChange={set('password')} /><small>প্রথম লগইনের পর প্রোফাইল থেকে বদলে নিতে বলুন।</small></div>
+      <div className="field"><label>প্রতিষ্ঠান (শিক্ষকের জন্য)</label><input className="input" value={f.institution} onChange={set('institution')} placeholder="এই প্রতিষ্ঠানের শিক্ষার্থীরা শিক্ষকের তালিকায় দেখাবে" /></div>
+      <button className="btn block" onClick={save} disabled={!f.name || !f.login || f.password.length < 6}>তৈরি করুন</button>
+    </div>
+  );
+}
+
+function UserActions({ u, self, onDone }) {
+  const [days, setDays] = useState(30);
+  const [pw, setPw] = useState('');
+  const [inst, setInst] = useState(u.institution || '');
+  const [err, setErr] = useState(null);
+  const run = async (fn, m) => { setErr(null); try { await fn(); onDone(m); } catch (e) { setErr(e.message); } };
+  return (
+    <div className="stack">
+      <ErrorBox error={err} />
+      <div className="small muted">{u.email || u.phone} · {ROLE_BN[u.role]} · যোগ দিয়েছেন {fmtDate(u.created_at)}</div>
+      <div className="card flat">
+        <b className="small">🎁 কমপ্লিমেন্টারি পাস দিন</b>
+        <p className="tiny muted">বৃত্তি, প্রতিযোগিতার পুরস্কার বা সমস্যার ক্ষতিপূরণের জন্য। বর্তমান মেয়াদের সাথে যোগ হবে।</p>
+        <div className="row"><input type="number" className="input" style={{ width: 100 }} value={days} onChange={(e) => setDays(Number(e.target.value))} /><span className="small">দিন</span>
+          <button className="btn sm" onClick={() => run(() => api.put(`/admin/users/${u.id}`, { grant_days: days }), `${u.name}-কে ${days} দিনের পাস দেওয়া হয়েছে`)}>দিন</button></div>
+      </div>
+      <div className="card flat">
+        <b className="small">🏫 প্রতিষ্ঠান</b>
+        <div className="row"><input className="input" style={{ flex: 1 }} value={inst} onChange={(e) => setInst(e.target.value)} />
+          <button className="btn sm" onClick={() => run(() => api.put(`/admin/users/${u.id}`, { institution: inst }), 'প্রতিষ্ঠান হালনাগাদ হয়েছে')}>সংরক্ষণ</button></div>
+      </div>
+      <div className="card flat">
+        <b className="small">🔑 পাসওয়ার্ড রিসেট</b>
+        <div className="row"><input className="input" style={{ flex: 1 }} placeholder="নতুন পাসওয়ার্ড" value={pw} onChange={(e) => setPw(e.target.value)} />
+          <button className="btn sm" disabled={pw.length < 6} onClick={() => run(() => api.post(`/admin/users/${u.id}/reset-password`, { password: pw }), 'পাসওয়ার্ড বদলানো হয়েছে — নতুন পাসওয়ার্ড ব্যবহারকারীকে জানান')}>বদলান</button></div>
+      </div>
+      {!self && (u.is_active
+        ? <button className="btn danger" onClick={() => run(() => api.put(`/admin/users/${u.id}`, { is_active: 0 }), `${u.name}-এর অ্যাকাউন্ট বন্ধ করা হয়েছে`)}>অ্যাকাউন্ট বন্ধ করুন</button>
+        : <button className="btn" onClick={() => run(() => api.put(`/admin/users/${u.id}`, { is_active: 1 }), `${u.name}-এর অ্যাকাউন্ট আবার চালু হয়েছে`)}>অ্যাকাউন্ট চালু করুন</button>)}
+    </div>
+  );
+}
+
+const CREATOR_STATUS = { pending: ['অপেক্ষমাণ', 'mid'], approved: ['অনুমোদিত', 'good'], rejected: ['প্রত্যাখ্যাত', 'bad'] };
+
+function MarketAdmin() {
+  const [tab, setTab] = useState('review');
+  return (
+    <div className="stack">
+      <div className="chips">{[['review', 'পর্যালোচনার অপেক্ষায় সেট'], ['creators', 'ক্রিয়েটর']].map(([k, l]) => <button key={k} className={`chip ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}</div>
+      {tab === 'review' ? <ProductReview /> : <Creators />}
+    </div>
+  );
+}
+
+function ProductReview() {
+  const { data, loading, reload } = useFetch('/market/admin/review');
+  const [open, setOpen] = useState(null);
+  const [note, setNote] = useState('');
+  const [err, setErr] = useState(null);
+  const { data: qs } = useFetch(open ? `/market/creator/products/${open.id}/questions` : null, [open?.id]);
+  const act = async (action) => {
+    setErr(null);
+    try { await api.put(`/market/admin/products/${open.id}`, { action, admin_note: note }); setOpen(null); setNote(''); reload(); } catch (e) { setErr(e.message); }
+  };
+  if (loading && !data) return <Loader />;
+  return (
+    <div className="card table-wrap">
+      <p className="small muted">প্রকাশের আগে প্রশ্নের নির্ভুলতা, ব্যাখ্যার মান ও কপিরাইট যাচাই করুন। অনুমোদিত সেট সঙ্গে সঙ্গে মার্কেটপ্লেসে দেখাবে।</p>
+      {!data?.length ? <Empty icon="✅" title="পর্যালোচনার অপেক্ষায় কোনো সেট নেই" /> : (
+        <table className="table"><thead><tr><th>শিরোনাম</th><th>ক্রিয়েটর</th><th>প্রশ্ন</th><th>মূল্য</th><th /></tr></thead>
+          <tbody>{data.map((p) => (
+            <tr key={p.id}><td><b>{p.title}</b></td><td className="small">{p.creator}</td><td>{bn(p.questions)}</td><td>{p.price_bdt ? `৳${bn(p.price_bdt)}` : 'ফ্রি'}</td>
+              <td><button className="btn sm" onClick={() => setOpen(p)}>যাচাই করুন</button></td></tr>
+          ))}</tbody></table>
+      )}
+      <Modal open={!!open} onClose={() => setOpen(null)} title={open?.title || ''} wide>
+        {open && <div className="stack">
+          <ErrorBox error={err} />
+          <p className="small">{open.description}</p>
+          <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+            {!qs ? <Loader /> : qs.map((q, i) => (
+              <div key={q.id} style={{ padding: '.5rem 0', borderBottom: '1px dashed var(--line)' }}>
+                <b className="small">{bn(i + 1)}. {q.body}</b>
+                <div className="tiny">{['a', 'b', 'c', 'd'].map((l) => <span key={l} className={l === q.correct_option ? 'tone-good' : ''} style={{ marginRight: 10 }}>{({ a: 'ক', b: 'খ', c: 'গ', d: 'ঘ' })[l]}) {q[`option_${l}`]}{l === q.correct_option ? ' ✓' : ''}</span>)}</div>
+                <div className="tiny muted">{q.explanation}</div>
+              </div>
+            ))}
+          </div>
+          <input className="input" placeholder="ক্রিয়েটরের জন্য মন্তব্য (প্রত্যাখ্যানে কী ঠিক করতে হবে)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <div className="row"><button className="btn" onClick={() => act('publish')}>✓ প্রকাশ করুন</button><button className="btn light" onClick={() => act('reject')}>সংশোধনের জন্য ফেরত</button></div>
+        </div>}
+      </Modal>
+    </div>
+  );
+}
+
+function Creators() {
+  const { data, loading, reload } = useFetch('/market/admin/creators');
+  const [pay, setPay] = useState(null);
+  const [err, setErr] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const run = async (fn, m) => { setErr(null); setMsg(null); try { await fn(); setMsg(m); reload(); } catch (e) { setErr(e.message); } };
+  if (loading && !data) return <Loader />;
+  return (
+    <div className="stack">
+      {msg && <div className="alert good">{msg}</div>}<ErrorBox error={err} />
+      <div className="card table-wrap">
+        {!data?.length ? <Empty title="এখনো কোনো আবেদন নেই" /> : (
+          <table className="table"><thead><tr><th>ক্রিয়েটর</th><th>যোগ্যতা ও প্রমাণ</th><th>সেট</th><th>পাওনা</th><th>অবস্থা</th><th /></tr></thead>
+            <tbody>{data.map((c) => (
+              <tr key={c.user_id}>
+                <td><b>{c.display_name}</b>{c.verified ? ' ✔' : ''}<div className="tiny muted">{c.email || c.phone}</div></td>
+                <td className="small">{c.credential}{c.evidence_url && <div><a href={c.evidence_url} target="_blank" rel="noreferrer">প্রমাণ দেখুন</a></div>}</td>
+                <td>{bn(c.products)}</td>
+                <td>৳{bn(Math.round(Number(c.balance)))}<div className="tiny muted">{c.payout_method} {c.payout_number}</div></td>
+                <td><span className={`badge ${CREATOR_STATUS[c.status][1]}`}>{CREATOR_STATUS[c.status][0]}</span></td>
+                <td className="row" style={{ gap: 4 }}>
+                  {c.status !== 'approved' && <button className="btn sm" onClick={() => run(() => api.put(`/market/admin/creators/${c.user_id}`, { status: 'approved', verified: false }), `${c.display_name} অনুমোদিত`)}>অনুমোদন</button>}
+                  {c.status === 'approved' && !c.verified && <button className="btn ghost sm" onClick={() => run(() => api.put(`/market/admin/creators/${c.user_id}`, { status: 'approved', verified: true }), `${c.display_name}-কে যাচাইকৃত ব্যাজ দেওয়া হয়েছে`)}>✔ যাচাইকৃত করুন</button>}
+                  {c.status === 'pending' && <button className="btn light sm" onClick={() => run(() => api.put(`/market/admin/creators/${c.user_id}`, { status: 'rejected', admin_note: 'যোগ্যতার প্রমাণ যথেষ্ট নয়' }), 'প্রত্যাখ্যান করা হয়েছে')}>প্রত্যাখ্যান</button>}
+                  {Number(c.balance) > 0 && <button className="btn light sm" onClick={() => setPay({ ...c, amount: Math.floor(Number(c.balance)), reference: '' })}>টাকা পরিশোধ</button>}
+                </td>
+              </tr>
+            ))}</tbody></table>
+        )}
+      </div>
+      <Modal open={!!pay} onClose={() => setPay(null)} title={`পরিশোধ — ${pay?.display_name || ''}`}>
+        {pay && <div className="stack">
+          <p className="small">{pay.payout_method} {pay.payout_number} নম্বরে টাকা পাঠিয়ে এখানে রেকর্ড করুন।</p>
+          <input type="number" className="input" value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} />
+          <input className="input" placeholder="TrxID / রেফারেন্স" value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} />
+          <button className="btn" onClick={() => run(async () => { await api.post('/market/admin/payouts', { creator_id: pay.user_id, amount_bdt: pay.amount, method: pay.payout_method, reference: pay.reference }); setPay(null); }, 'পরিশোধ রেকর্ড হয়েছে')}>রেকর্ড করুন</button>
+        </div>}
+      </Modal>
     </div>
   );
 }

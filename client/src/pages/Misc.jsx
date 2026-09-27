@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { api } from '../api.js';
 import { useFetch, useStartTest, Loader, ErrorBox, Empty } from '../components/ui.jsx';
@@ -133,6 +133,7 @@ export function Bookmarks() {
 
 export function QuestionPage() {
   const { id } = useParams();
+  const area = useLocation().pathname.startsWith('/admin') ? '/admin' : '/app';
   const { data, error, loading } = useFetch(`/questions/${id}`);
   if (loading && !data) return <Loader />;
   if (error) return <ErrorBox error={error} />;
@@ -154,7 +155,7 @@ export function QuestionPage() {
         <div className="row mt"><BookmarkButton questionId={data.id} /><DiscussionButton questionId={data.id} /><ReportButton questionId={data.id} /></div>
       </div>
       {data.history.length > 1 && <div className="card"><h3>📜 সংশোধনের ইতিহাস</h3>{data.history.map((h) => <div key={h.version} className="small">সংস্করণ {bn(h.version)} — {h.change_note} <span className="muted">({fmtDate(h.changed_at)})</span></div>)}</div>}
-      {data.related.length > 0 && <div className="card"><h3>🔗 একই টপিকের প্রশ্ন</h3>{data.related.map((r) => <div key={r.id} className="small" style={{ padding: '.3rem 0' }}><Link to={`/app/question/${r.id}`}>{r.body}</Link></div>)}</div>}
+      {data.related.length > 0 && <div className="card"><h3>🔗 একই টপিকের প্রশ্ন</h3>{data.related.map((r) => <div key={r.id} className="small" style={{ padding: '.3rem 0' }}><Link to={`${area}/question/${r.id}`}>{r.body}</Link></div>)}</div>}
     </div>
   );
 }

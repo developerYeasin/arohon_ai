@@ -34,6 +34,7 @@ function Gate() {
       <Stack.Screen name="current-affairs" options={{ title: 'সাম্প্রতিক বিষয়াবলি' }} />
       <Stack.Screen name="leaderboard" options={{ title: 'লিডারবোর্ড' }} />
       <Stack.Screen name="history" options={{ title: 'পরীক্ষার ইতিহাস' }} />
+      <Stack.Screen name="staff" options={{ title: 'ব্যবস্থাপনা', headerBackVisible: false }} />
     </Stack>
   );
 }

@@ -9,7 +9,7 @@ async function load(req) {
   if (!token) return null;
   try {
     const { id } = jwt.verify(token, process.env.JWT_SECRET);
-    return await one('SELECT * FROM users WHERE id=?', [id]);
+    return await one('SELECT * FROM users WHERE id=? AND is_active=1', [id]);
   } catch {
     return null;
   }

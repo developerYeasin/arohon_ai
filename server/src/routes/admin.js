@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { query, one, tx } from '../db.js';
 import { auth, requireRole } from '../middleware/auth.js';
 import { asyncH, HttpError, clamp, dhakaToday, pct, toBn } from '../services/util.js';
@@ -264,6 +265,60 @@ r.put('/plans/:code', requireRole('admin'), asyncH(async (req, res) => {
   const { name_bn, price_bdt, duration_days, is_active, highlight } = req.body;
   await query('UPDATE plans SET name_bn=COALESCE(?,name_bn), price_bdt=COALESCE(?,price_bdt), duration_days=COALESCE(?,duration_days), is_active=COALESCE(?,is_active), highlight=? WHERE code=?',
     [name_bn ?? null, price_bdt ?? null, duration_days ?? null, is_active ?? null, highlight || null, req.params.code]);
+  res.json({ ok: true });
+}));
+
+// ---------- User management (admin only) ----------
+const ROLES = ['student', 'teacher', 'admin'];
+
+r.get('/users', requireRole('admin'), asyncH(async (req, res) => {
+  const where = ['1=1']; const params = [];
+  if (req.query.role && ROLES.includes(req.query.role)) { where.push('u.role=?'); params.push(req.query.role); }
+  if (req.query.search) { where.push('(u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)'); const s = `%${req.query.search}%`; params.push(s, s, s); }
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const total = (await one(`SELECT COUNT(*) n FROM users u WHERE ${where.join(' AND ')}`, params)).n;
+  const rows = await query(
+    `SELECT u.id, u.name, u.email, u.phone, u.role, u.track, u.district, u.institution, u.is_active, u.xp, u.last_active_date, u.created_at, u.trial_ends_at,
+            (SELECT MAX(s.ends_at) FROM subscriptions s WHERE s.user_id=u.id AND s.status='active' AND s.ends_at > UTC_TIMESTAMP()) pass_until
+       FROM users u WHERE ${where.join(' AND ')} ORDER BY u.id DESC LIMIT 30 OFFSET ?`, [...params, (page - 1) * 30]);
+  res.json({ total, page, rows });
+}));
+
+// Create staff (or student) accounts directly — e.g. a new teacher for a coaching batch.
+r.post('/users', requireRole('admin'), asyncH(async (req, res) => {
+  const { name, email, phone, password, role = 'teacher', institution = null } = req.body;
+  if (!name?.trim() || (!email && !phone) || !password || password.length < 6) throw new HttpError(400, 'নাম, ইমেইল/মোবাইল ও কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন');
+  if (!ROLES.includes(role)) throw new HttpError(400, 'অবৈধ role');
+  if (await one('SELECT id FROM users WHERE (email IS NOT NULL AND email=?) OR (phone IS NOT NULL AND phone=?)', [email || null, phone || null])) throw new HttpError(409, 'এই ইমেইল/মোবাইলে অ্যাকাউন্ট আছে');
+  const ins = await query('INSERT INTO users (name, email, phone, password_hash, role, institution) VALUES (?,?,?,?,?,?)',
+    [name.trim(), email || null, phone || null, await bcrypt.hash(password, 10), role, institution]);
+  res.json({ id: ins.insertId });
+}));
+
+r.put('/users/:id', requireRole('admin'), asyncH(async (req, res) => {
+  const target = await one('SELECT id, role FROM users WHERE id=?', [req.params.id]);
+  if (!target) throw new HttpError(404, 'ব্যবহারকারী পাওয়া যায়নি');
+  const { role, is_active, institution, grant_days } = req.body;
+  // Guard against locking everyone out: you can't demote or block yourself.
+  if (target.id === req.user.id && ((role && role !== 'admin') || is_active === 0 || is_active === false)) throw new HttpError(400, 'নিজের অ্যাডমিন অ্যাক্সেস বা অ্যাকাউন্ট বন্ধ করা যায় না');
+  if (role !== undefined) { if (!ROLES.includes(role)) throw new HttpError(400, 'অবৈধ role'); await query('UPDATE users SET role=? WHERE id=?', [role, target.id]); }
+  if (is_active !== undefined) await query('UPDATE users SET is_active=? WHERE id=?', [is_active ? 1 : 0, target.id]);
+  if (institution !== undefined) await query('UPDATE users SET institution=? WHERE id=?', [institution || null, target.id]);
+  if (grant_days) {
+    // Complimentary pass (e.g. scholarship, support compensation), stacked on existing time.
+    const days = clamp(Number(grant_days), 1, 365);
+    const cur = await one(`SELECT GREATEST(UTC_TIMESTAMP(), COALESCE(MAX(ends_at), UTC_TIMESTAMP())) s FROM subscriptions WHERE user_id=? AND status='active'`, [target.id]);
+    const start = new Date(cur.s); const end = new Date(start.getTime() + days * 86400000);
+    const fmt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
+    await query(`INSERT IGNORE INTO plans (code, name_bn, price_bdt, duration_days, is_active, sort_order) VALUES ('complimentary','কমপ্লিমেন্টারি পাস',0,0,0,98)`);
+    await query('INSERT INTO subscriptions (user_id, plan_code, starts_at, ends_at) VALUES (?,?,?,?)', [target.id, 'complimentary', fmt(start), fmt(end)]);
+  }
+  res.json({ ok: true });
+}));
+
+r.post('/users/:id/reset-password', requireRole('admin'), asyncH(async (req, res) => {
+  if (!req.body.password || req.body.password.length < 6) throw new HttpError(400, 'কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন');
+  await query('UPDATE users SET password_hash=? WHERE id=?', [await bcrypt.hash(req.body.password, 10), req.params.id]);
   res.json({ ok: true });
 }));
 

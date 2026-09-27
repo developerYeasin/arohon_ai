@@ -9,6 +9,10 @@ export const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
+  // Remote MySQL drops idle sockets (ECONNRESET); keep-alive and a short idle timeout avoid reusing dead ones.
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  idleTimeout: 60000,
   charset: 'utf8mb4',
   timezone: 'Z',
   dateStrings: ['DATE'],

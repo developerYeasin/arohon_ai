@@ -16,7 +16,7 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setErr(null);
-    try { await login(normId(f.login), f.password); nav(loc.state?.from || '/app'); } catch (e2) { setErr(e2.message); } finally { setBusy(false); }
+    try { const u = await login(normId(f.login), f.password); const staff = ['admin', 'teacher'].includes(u.role); nav(staff ? '/admin' : (loc.state?.from?.startsWith('/app') || loc.state?.from?.startsWith('/exam') ? loc.state.from : '/app')); } catch (e2) { setErr(e2.message); } finally { setBusy(false); }
   };
   return (
     <div className="auth-wrap">

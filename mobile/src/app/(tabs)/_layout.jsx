@@ -11,6 +11,8 @@ const icon = (emoji) => function Icon({ focused }) { return <TabIcon emoji={emoj
 export default function TabLayout() {
   const { user } = useAuth();
   if (!user) return <Redirect href="/login" />;
+  // Staff don't use the student tabs.
+  if (['admin', 'teacher'].includes(user.role)) return <Redirect href="/staff" />;
   return (
     <Tabs screenOptions={{
       tabBarActiveTintColor: C.brand, tabBarInactiveTintColor: C.muted,

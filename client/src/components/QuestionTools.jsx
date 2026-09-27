@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api } from '../api.js';
 import { Modal, useFetch, Loader, ErrorBox } from './ui.jsx';
 import { useAuth } from '../auth.jsx';
@@ -54,6 +54,7 @@ export function DiscussionButton({ questionId }) {
 
 function DiscussionModal({ questionId, onClose }) {
   const { user } = useAuth();
+  const area = useLocation().pathname.startsWith('/admin') ? '/admin' : '/app';
   const { data, loading, error, reload } = useFetch(`/questions/${questionId}`);
   const [body, setBody] = useState('');
   const [err, setErr] = useState(null);
@@ -71,7 +72,7 @@ function DiscussionModal({ questionId, onClose }) {
         <div className="row small muted mb">
           {data.stats.attempts > 0 && <span>{bn(data.stats.attempts)} জন চেষ্টা করেছেন · সঠিক {bn(data.stats.accuracy)}% · গড় {bn(data.stats.avg_sec)} সেকেন্ড</span>}
           <span>· সংস্করণ {bn(data.version)}{data.last_verified_at ? ` · যাচাই: ${fmtDate(data.last_verified_at)}` : ''}</span>
-          <Link to={`/app/question/${questionId}`} onClick={onClose}>পূর্ণ পাতা →</Link>
+          <Link to={`${area}/question/${questionId}`} onClick={onClose}>পূর্ণ পাতা →</Link>
         </div>
         {data.discussions.length === 0 && <p className="muted small">এখনো কোনো আলোচনা নেই। প্রথম ব্যাখ্যাটি আপনিই লিখুন!</p>}
         {data.discussions.map((d) => (

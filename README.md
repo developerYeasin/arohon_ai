@@ -7,7 +7,8 @@ It's built as a personal preparation system rather than another MCQ question ban
 arohon_ai/
 ├── server/   Node.js + Express + MySQL API
 ├── client/   React (Vite) web app
-└── mobile/   React Native (Expo) Android/iOS app — see mobile/README.md
+├── mobile/   React Native (Expo) Android/iOS app — see mobile/README.md
+└── quiz/     Public login-free quiz site (port 5180) — see quiz/README.md
 ```
 
 ## Quick start
@@ -30,7 +31,7 @@ npm run dev             # http://localhost:5173  (proxies /api → :5000)
 Demo accounts are created by the seed from the `SEED_*` values in `server/.env`
 (admin, teacher, a student on a 7-day trial, and a free-tier student).
 
-> Change these passwords and `JWT_SECRET` before deploying. `npm run seed -- --fresh` **drops all tables** and reseeds.
+> Change these passwords and `JWT_SECRET` before deploying. `npm run seed -- --fresh --yes-delete-everything` **drops all tables** and reseeds — never run it against a database shared with a live site.
 
 ### Optional: LLM-powered AI Coach
 The coach works without any API key by using a built-in rule engine grounded in the student's data. To have Claude write the replies, set `ANTHROPIC_API_KEY` in `server/.env`. The model defaults to `claude-opus-5` and can be changed with `CLAUDE_MODEL`. Server-side refusal fallback is enabled. The rule engine still supplies the action buttons, and it takes over if the API call fails.

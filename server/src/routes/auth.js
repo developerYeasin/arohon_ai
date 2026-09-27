@@ -43,6 +43,7 @@ r.post('/login', asyncH(async (req, res) => {
   const user = await one('SELECT * FROM users WHERE email=? OR phone=?', [login, login]);
   if (!user || !(await bcrypt.compare(password || '', user.password_hash))) { noteFail(key); throw new HttpError(401, 'ইমেইল/মোবাইল অথবা পাসওয়ার্ড ভুল'); }
   failed.delete(key);
+  if (!user.is_active) throw new HttpError(403, 'এই অ্যাকাউন্টটি বন্ধ করা হয়েছে — সহায়তার জন্য যোগাযোগ করুন');
   res.json({ token: sign(user), user: await withAccess(user) });
 }));
 

@@ -34,7 +34,8 @@ export default function Landing() {
   const { data: exams } = useFetch('/catalog/exams');
   const { data: stats } = useFetch('/catalog/stats');
   const { data: billing } = useFetch('/billing/plans');
-  const cta = user ? '/app' : '/register';
+  const home = ['admin', 'teacher'].includes(user?.role) ? '/admin' : '/app';
+  const cta = user ? home : '/register';
 
   return (
     <div>
@@ -43,7 +44,7 @@ export default function Landing() {
           <Link to="/" className="brand" style={{ padding: 0 }}><span className="logo">⛰️</span><span>আরোহণ</span></Link>
           <nav><a href="#tracks">পরীক্ষাসমূহ</a><a href="#features">ফিচারসমূহ</a><a href="#different">কেন আলাদা</a><a href="#pricing">প্যাকেজ</a></nav>
           <div className="spacer" />
-          {user ? <Link className="btn accent" to="/app">ড্যাশবোর্ড</Link> : <>
+          {user ? <Link className="btn accent" to={home}>ড্যাশবোর্ড</Link> : <>
             <Link to="/login" style={{ color: '#fff', fontWeight: 600 }}>লগইন</Link>
             <Link className="btn accent" to="/register">ফ্রি শুরু করুন</Link>
           </>}

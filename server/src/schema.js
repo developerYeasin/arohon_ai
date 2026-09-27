@@ -677,3 +677,32 @@ export const modifications = [
   // 'product' = question that belongs to a paid/creator set and must stay out of the general bank.
   ['questions', 'status', "ENUM('active','needs_review','retired','product') NOT NULL DEFAULT 'active'", "'product'"],
 ];
+
+// ---------- Release 7: public quiz (no login) ----------
+schema.push(
+  `CREATE TABLE IF NOT EXISTS public_plays (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind ENUM('daily','subject','challenge') NOT NULL,
+    quiz_key VARCHAR(60) NOT NULL,
+    track ENUM('academic','admission','job') NULL,
+    question_ids JSON NOT NULL,
+    score INT NOT NULL,
+    total INT NOT NULL,
+    time_sec INT NOT NULL DEFAULT 0,
+    nickname VARCHAR(30) NULL,
+    challenge_code VARCHAR(12) NULL UNIQUE,
+    ip_hash VARCHAR(64) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_pp_key (quiz_key, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS public_qotd_answers (
+    qotd_date DATE NOT NULL,
+    track ENUM('academic','admission','job') NOT NULL,
+    question_id INT NOT NULL,
+    is_correct TINYINT(1) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_qa (qotd_date, track)
+  ) ENGINE=InnoDB`,
+);
+columns.push(['users', 'is_active', 'TINYINT(1) NOT NULL DEFAULT 1']);

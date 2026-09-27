@@ -7,11 +7,17 @@ export const tokenStore = {
 
 async function request(method, path, body) {
   const token = tokenStore.get();
-  const res = await fetch(BASE + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(BASE + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    // Network failure, server down, or the API refused this site (CORS: CLIENT_ORIGIN on the server).
+    throw new Error('সার্ভারের সাথে সংযোগ করা যাচ্ছে না — ইন্টারনেট দেখুন, অথবা কিছুক্ষণ পর আবার চেষ্টা করুন।');
+  }
   let data = null;
   try { data = await res.json(); } catch { /* empty body */ }
   if (!res.ok) {

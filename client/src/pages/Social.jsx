@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+
+// Group pages are shared by students (/app) and teachers (/admin).
+const useArea = () => (useLocation().pathname.startsWith('/admin') ? '/admin' : '/app');
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { useFetch, Loader, ErrorBox, Empty, Bar, Modal } from '../components/ui.jsx';
@@ -176,6 +179,7 @@ export function BattleJoin() {
 
 // ================= Groups & batches =================
 export function Groups() {
+  const area = useArea();
   const nav = useNavigate();
   const { user } = useAuth();
   const { data, reload } = useFetch('/social/groups');
@@ -184,8 +188,8 @@ export function Groups() {
   const [code, setCode] = useState('');
   const [err, setErr] = useState(null);
   const staff = ['teacher', 'admin'].includes(user.role);
-  const make = async () => { setErr(null); try { const d = await api.post('/social/groups', f); nav(`/app/groups/${d.id}`); } catch (e) { setErr(e.message); } };
-  const join = async (c) => { setErr(null); try { const d = await api.post(`/social/groups/join/${c}`); nav(`/app/groups/${d.id}`); } catch (e) { setErr(e.message); reload(); } };
+  const make = async () => { setErr(null); try { const d = await api.post('/social/groups', f); nav(`${area}/groups/${d.id}`); } catch (e) { setErr(e.message); } };
+  const join = async (c) => { setErr(null); try { const d = await api.post(`/social/groups/join/${c}`); nav(`${area}/groups/${d.id}`); } catch (e) { setErr(e.message); reload(); } };
   return (
     <div className="stack">
       <div className="page-head"><div><h1>👥 স্টাডি গ্রুপ{staff ? ' ও কোচিং ব্যাচ' : ''}</h1><p>একসাথে পড়ুন: গ্রুপ লিডারবোর্ড, গ্রুপ চ্যালেঞ্জ ও আলোচনা। একা পড়ার ক্লান্তি কমে, ধারাবাহিকতা বাড়ে।</p></div>
@@ -199,7 +203,7 @@ export function Groups() {
       <h3>আমার গ্রুপ</h3>
       {!data ? <Loader /> : !data.mine.length ? <div className="card"><Empty icon="👥" title="এখনো কোনো গ্রুপে নেই">বন্ধুদের নিয়ে একটি গ্রুপ খুলুন, অথবা নিচের পাবলিক গ্রুপে যোগ দিন।</Empty></div> : (
         <div className="grid g3">{data.mine.map((g) => (
-          <Link key={g.id} to={`/app/groups/${g.id}`} className="card exam-tile">
+          <Link key={g.id} to={`${area}/groups/${g.id}`} className="card exam-tile">
             <div className="row between"><span className={`badge ${g.kind === 'batch' ? 'accent' : ''}`}>{g.kind === 'batch' ? 'কোচিং ব্যাচ' : 'স্টাডি গ্রুপ'}</span><span className="tiny muted">{bn(g.members)} জন</span></div>
             <b>{g.name}</b><span className="small muted">{g.exam || ''}{g.role !== 'member' ? ` · ${g.role === 'owner' ? 'মালিক' : 'শিক্ষক'}` : ''}</span>
           </Link>
@@ -224,6 +228,7 @@ export function Groups() {
 }
 
 export function GroupPage() {
+  const area = useArea();
   const { id } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
@@ -238,7 +243,7 @@ export function GroupPage() {
   if (error) return <ErrorBox error={error} />;
   const send = async () => { await api.post(`/social/groups/${id}/posts`, { body: post }); setPost(''); reload(); };
   const makeAssign = async () => { setErr(null); try { await api.post(`/social/groups/${id}/assignments`, af); setAssign(false); reload(); } catch (e) { setErr(e.message); } };
-  const leave = async () => { await api.post(`/social/groups/${id}/leave`); nav('/app/groups'); };
+  const leave = async () => { await api.post(`/social/groups/${id}/leave`); nav(`${area}/groups`); };
   const staffView = g.role === 'owner' || g.role === 'teacher';
   return (
     <div className="stack">
@@ -258,7 +263,7 @@ export function GroupPage() {
               <div key={a.id} className="row between" style={{ padding: '.5rem 0', borderBottom: '1px dashed var(--line)' }}>
                 <span className="small"><b>{a.title}</b><br /><span className="tiny muted">{bn(a.questions)} প্রশ্ন · {bn(a.done)}/{bn(g.members.length)} জন সম্পন্ন{a.due_at ? ` · শেষ সময় ${fmtDate(a.due_at, true)}` : ''}{a.avg_score != null ? ` · গড় ${bn(Number(a.avg_score))}` : ''}</span></span>
                 <span className="row">
-                  {a.my_attempt ? <Link className="btn light sm" to={`/app/result/${a.my_attempt}`}>আমার ফল</Link> : <Link className="btn sm" to={`/exam/${a.test_id}`}>শুরু</Link>}
+                  {a.my_attempt ? <Link className="btn light sm" to={`${area}/result/${a.my_attempt}`}>আমার ফল</Link> : <Link className="btn sm" to={`/exam/${a.test_id}`}>শুরু</Link>}
                   <button className="btn ghost sm" onClick={async () => setBoard(await api.get(`/social/groups/${id}/assignments/${a.id}`))}>র‍্যাংকিং</button>
                 </span>
               </div>
@@ -308,7 +313,7 @@ export function GroupPage() {
                 <td>{r.score == null ? <span className="badge gray">দেয়নি</span> : <b>{bn(r.score)}</b>}</td><td>{r.score == null ? '—' : `${bn(r.correct)}/${bn(r.wrong)}`}</td><td>{r.score == null ? '—' : fmtDuration(r.time_spent_sec)}</td></tr>
             ))}</tbody>
           </table></div>
-          {board.staff && board.hardest.length > 0 && <><h3 className="mt">ক্লাসের জন্য সবচেয়ে কঠিন প্রশ্ন</h3>{board.hardest.map((h) => <div key={h.id} className="row between small" style={{ padding: '.3rem 0' }}><Link to={`/app/question/${h.id}`}>{h.body}</Link><span className="tone-bad">{bn(h.accuracy)}%</span></div>)}</>}
+          {board.staff && board.hardest.length > 0 && <><h3 className="mt">ক্লাসের জন্য সবচেয়ে কঠিন প্রশ্ন</h3>{board.hardest.map((h) => <div key={h.id} className="row between small" style={{ padding: '.3rem 0' }}><Link to={`${area}/question/${h.id}`}>{h.body}</Link><span className="tone-bad">{bn(h.accuracy)}%</span></div>)}</>}
         </>}
       </Modal>
     </div>

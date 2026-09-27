@@ -18,11 +18,13 @@ const NAV = [
   { section: 'আরও' },
   { to: '/app/intelligence', ico: '🔎', label: 'প্রশ্ন বিশ্লেষণ' },
   { to: '/app/current-affairs', ico: '📰', label: 'সাম্প্রতিক বিষয়াবলি' },
+  { to: '/app/market', ico: '🛒', label: 'বিশেষজ্ঞদের প্রশ্নসেট' },
   { to: '/app/battles', ico: '⚔️', label: '১-বনাম-১ ব্যাটল' },
   { to: '/app/groups', ico: '👥', label: 'স্টাডি গ্রুপ' },
   { to: '/app/leaderboard', ico: '🏆', label: 'লিডারবোর্ড' },
   { to: '/app/history', ico: '🗂️', label: 'পরীক্ষার ইতিহাস' },
   { to: '/app/bookmarks', ico: '🔖', label: 'সংরক্ষিত প্রশ্ন' },
+  { to: '/app/creator', ico: '✍️', label: 'ক্রিয়েটর স্টুডিও' },
   { to: '/app/billing', ico: '💳', label: 'এক্সাম পাস' },
   { to: '/app/profile', ico: '⚙️', label: 'প্রোফাইল ও লক্ষ্য' },
 ];
@@ -39,7 +41,6 @@ export default function Layout() {
   const { user, logout, updateProfile } = useAuth();
   const nav = useNavigate();
   const { data: exams } = useFetch('/catalog/exams');
-  const staff = ['admin', 'teacher'].includes(user.role);
 
   const switchExam = async (e) => {
     await updateProfile({ target_exam_id: Number(e.target.value) });
@@ -55,7 +56,6 @@ export default function Layout() {
           {NAV.map((n, i) => n.section
             ? <div className="section" key={i}>{n.section}</div>
             : <NavLink key={n.to} to={n.to} end={n.end}><span className="ico">{n.ico}</span>{n.label}</NavLink>)}
-          {staff && <><div className="section">ব্যবস্থাপনা</div><NavLink to="/app/admin"><span className="ico">🛠️</span>{user.role === 'admin' ? 'অ্যাডমিন প্যানেল' : 'শিক্ষক ড্যাশবোর্ড'}</NavLink></>}
         </nav>
         <div className="me">
           <div style={{ color: '#fff', fontWeight: 600 }}>{user.name}</div>
@@ -106,7 +106,6 @@ export function MoreMenu() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const items = NAV.filter((n) => n.to && !BOTTOM.some((b) => b.to === n.to));
-  if (['admin', 'teacher'].includes(user.role)) items.push({ to: '/app/admin', ico: '🛠️', label: 'ব্যবস্থাপনা' });
   return (
     <div className="card">
       {items.map((n) => <Link key={n.to} to={n.to} className="mission-item" style={{ color: 'var(--text)', textDecoration: 'none' }}><span>{n.ico}</span><span>{n.label}</span></Link>)}

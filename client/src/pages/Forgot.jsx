@@ -29,7 +29,7 @@ export default function Forgot() {
     e.preventDefault(); setBusy(true); setErr(null);
     try {
       const d = await api.post('/auth/reset', { login: normId(login), code: normId(code), password });
-      tokenStore.set(d.token); await refresh(); nav('/app');
+      tokenStore.set(d.token); await refresh(); nav(['admin', 'teacher'].includes(d.user.role) ? '/admin' : '/app');
     } catch (e2) { setErr(e2.message); } finally { setBusy(false); }
   };
 

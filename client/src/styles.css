@@ -281,3 +281,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: .94rem; }
 .pay-steps li { counter-increment: step; position: relative; padding-left: 2.1rem; margin-bottom: .6rem; }
 .pay-steps li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--brand); color: #fff; font-size: .8rem; display: grid; place-items: center; font-weight: 700; }
 .usage-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 60px; gap: .6rem; align-items: center; font-size: .9rem; padding: .3rem 0; }
+
+/* Staff bottom bar has more sections than fit, so it scrolls. */
+@media (max-width: 900px) {
+  .bottom-nav.staff { display: flex; overflow-x: auto; }
+  .bottom-nav.staff a { flex: 0 0 auto; min-width: 76px; padding-left: .4rem; padding-right: .4rem; }
+}
