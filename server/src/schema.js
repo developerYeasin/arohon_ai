@@ -773,3 +773,9 @@ schema.push(
     FOREIGN KEY (form_id) REFERENCES exam_forms(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 );
+columns.push(
+  ['exam_form_submissions', 'phone', 'VARCHAR(20) NULL'],
+  ['exam_form_submissions', 'email', 'VARCHAR(120) NULL'],
+  ['exam_form_submissions', 'district', 'VARCHAR(60) NULL'],
+  ['exam_forms', 'leaderboard_limit', 'INT NOT NULL DEFAULT 50'],
+);

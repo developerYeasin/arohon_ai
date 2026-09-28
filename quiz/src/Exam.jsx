@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, bn, deviceId, fmtDate, fmtTime, LETTERS, num, store } from './lib.js';
 import { Modal } from './ui.jsx';
 
+const DISTRICTS = 'বাগেরহাট বান্দরবান বরগুনা বরিশাল ভোলা বগুড়া ব্রাহ্মণবাড়িয়া চাঁদপুর চাঁপাইনবাবগঞ্জ চট্টগ্রাম চুয়াডাঙ্গা কুমিল্লা কক্সবাজার ঢাকা দিনাজপুর ফরিদপুর ফেনী গাইবান্ধা গাজীপুর গোপালগঞ্জ হবিগঞ্জ জামালপুর যশোর ঝালকাঠি ঝিনাইদহ জয়পুরহাট খাগড়াছড়ি খুলনা কিশোরগঞ্জ কুড়িগ্রাম কুষ্টিয়া লক্ষ্মীপুর লালমনিরহাট মাদারীপুর মাগুরা মানিকগঞ্জ মেহেরপুর মৌলভীবাজার মুন্সীগঞ্জ ময়মনসিংহ নওগাঁ নড়াইল নারায়ণগঞ্জ নরসিংদী নাটোর নেত্রকোণা নীলফামারী নোয়াখালী পাবনা পঞ্চগড় পটুয়াখালী পিরোজপুর রাজবাড়ী রাজশাহী রাঙ্গামাটি রংপুর সাতক্ষীরা শরীয়তপুর শেরপুর সিরাজগঞ্জ সুনামগঞ্জ সিলেট টাঙ্গাইল ঠাকুরগাঁও'.split(' ').sort((a, b) => a.localeCompare(b, 'bn'));
+
 export default function Exam() {
   const { code } = useParams();
   const [meta, setMeta] = useState(null);
@@ -24,6 +26,8 @@ export default function Exam() {
 
 function Intro({ meta, onStart }) {
   const [name, setName] = useState(() => store.get('qz_name', ''));
+  const [info, setInfo] = useState(() => ({ phone: '', email: '', district: '', ...store.get('qz_info', {}) }));
+  const setI = (p) => setInfo((o) => ({ ...o, ...p }));
   const [password, setPassword] = useState('');
   const [err, setErr] = useState(null);
   const [done, setDone] = useState(null);
@@ -33,8 +37,8 @@ function Intro({ meta, onStart }) {
   const start = async (e) => {
     e.preventDefault(); setErr(null); setBusy(true);
     try {
-      store.set('qz_name', name.trim());
-      onStart(await api(`/forms/p/${meta.code}/start`, { method: 'POST', body: { name, password, device: deviceId() } }));
+      store.set('qz_name', name.trim()); store.set('qz_info', info);
+      onStart(await api(`/forms/p/${meta.code}/start`, { method: 'POST', body: { name, ...info, password, device: deviceId() } }));
     } catch (x) { if (x.status === 409 && x.code) setDone(x.code); setErr(x.message); } finally { setBusy(false); }
   };
 
@@ -70,6 +74,15 @@ function Intro({ meta, onStart }) {
         <form className="card stack" onSubmit={start}>
           <label className="field"><span>আপনার নাম</span>
             <input className="input big" value={name} onChange={(e) => setName(e.target.value)} placeholder="পুরো নাম লিখুন" autoComplete="name" required minLength={2} maxLength={80} /></label>
+          <label className="field"><span>📱 মোবাইল নম্বর</span>
+            <input className="input" type="tel" inputMode="numeric" value={info.phone} onChange={(e) => setI({ phone: e.target.value })} placeholder="01XXXXXXXXX" autoComplete="tel" required maxLength={16} /></label>
+          <label className="field"><span>✉️ ইমেইল (Gmail)</span>
+            <input className="input" type="email" value={info.email} onChange={(e) => setI({ email: e.target.value })} placeholder="example@gmail.com" autoComplete="email" required maxLength={120} /></label>
+          <label className="field"><span>📍 জেলা</span>
+            <select className="input" value={info.district} onChange={(e) => setI({ district: e.target.value })} required>
+              <option value="">— জেলা বেছে নিন —</option>
+              {DISTRICTS.map((d) => <option key={d}>{d}</option>)}
+            </select></label>
           {meta.needs_password && <label className="field"><span>🔒 পরীক্ষার পাসওয়ার্ড</span><input className="input" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>}
           {err && <div className="alert bad">{err}{done && <> — <button type="button" className="linkbtn" onClick={() => nav(`/e/${meta.code}/r/${done}`)}>আগের ফলাফল দেখুন</button></>}</div>}
           <button className="btn accent block big" disabled={busy}>{busy ? 'শুরু হচ্ছে…' : '▶ পরীক্ষা শুরু করুন'}</button>
@@ -122,6 +135,14 @@ function Taking({ meta, sess, storeKey }) {
       .then(() => setSaved('saved')).catch(() => setSaved('offline')), 1200);
     return () => clearTimeout(t);
   }, [answers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Block copying question text while the exam is open (selection is also disabled in CSS).
+  useEffect(() => {
+    const block = (e) => { if (!e.target.closest?.('input, textarea')) e.preventDefault(); };
+    const evs = ['copy', 'cut', 'contextmenu', 'selectstart', 'dragstart'];
+    evs.forEach((ev) => document.addEventListener(ev, block));
+    return () => evs.forEach((ev) => document.removeEventListener(ev, block));
+  }, []);
 
   useEffect(() => {
     const warn = (e) => { if (!submitting.current) { e.preventDefault(); e.returnValue = ''; } };

@@ -18,14 +18,15 @@ const norm = (s) => String(s ?? '').replace(/[০-৯]/g, (d) => BN[d]).trim().t
 const nameKey = (s) => norm(s).slice(0, 80);
 
 const SETTINGS = ['title', 'description', 'status', 'duration_min', 'marks_per_q', 'negative_mark', 'pass_mark', 'shuffle_questions', 'shuffle_options',
-  'one_attempt', 'show_result', 'show_answers', 'show_leaderboard', 'password', 'starts_at', 'ends_at'];
+  'one_attempt', 'show_result', 'show_answers', 'show_leaderboard', 'leaderboard_limit', 'password', 'starts_at', 'ends_at'];
 
 function cleanSettings(b) {
   const out = {};
   for (const k of SETTINGS) {
     if (!(k in b)) continue;
     let v = b[k];
-    if (['duration_min'].includes(k)) v = Math.max(0, Math.min(600, Math.round(num(v))));
+    if (k === 'leaderboard_limit') v = Math.max(0, Math.min(1000, Math.round(num(v, 50))));
+    else if (['duration_min'].includes(k)) v = Math.max(0, Math.min(600, Math.round(num(v))));
     else if (['marks_per_q', 'negative_mark'].includes(k)) v = Math.max(0, num(v));
     else if (k === 'pass_mark') v = v === '' || v == null ? null : num(v);
     else if (k.startsWith('shuffle_') || k.startsWith('show_') && k !== 'show_result' || k === 'one_attempt') v = v ? 1 : 0;
@@ -181,7 +182,7 @@ r.get('/:id/results', ...staff, asyncH(async (req, res) => {
   await closeExpired(f);
   const qs = (await query('SELECT id, type, body, options, answer, marks FROM exam_form_questions WHERE form_id=? ORDER BY position, id', [f.id])).map(parseQ);
   const subs = await query(
-    `SELECT id, name, status, started_at, submitted_at, time_sec, score, total_marks, correct, wrong, skipped, answers
+    `SELECT id, name, phone, email, district, status, started_at, submitted_at, time_sec, score, total_marks, correct, wrong, skipped, answers
      FROM exam_form_submissions WHERE form_id=? ORDER BY status='submitted' DESC, score DESC, time_sec ASC`, [f.id]);
   const done = subs.filter((s) => s.status === 'submitted');
   const stats = qs.map((q) => {
@@ -245,7 +246,7 @@ r.get('/p/:code', asyncH(async (req, res) => {
     code: f.code, title: f.title, description: f.description, duration_min: f.duration_min, questions: qs.length, total_marks: total,
     marks_per_q: Number(f.marks_per_q), negative_mark: Number(f.negative_mark), pass_mark: f.pass_mark == null ? null : Number(f.pass_mark),
     needs_password: !!f.password, one_attempt: !!f.one_attempt, starts_at: f.starts_at, ends_at: f.ends_at, state: windowState(f),
-    show_leaderboard: !!f.show_leaderboard && canSeeResult(f),
+    show_leaderboard: !!f.show_leaderboard && canSeeResult(f), leaderboard_limit: f.leaderboard_limit,
   });
 }));
 
@@ -272,6 +273,9 @@ r.post('/p/:code/start', asyncH(async (req, res) => {
   const f = await liveForm(req.params.code);
   const name = String(req.body.name || '').trim().replace(/\s+/g, ' ').slice(0, 80);
   const device = String(req.body.device || '').slice(0, 40) || null;
+  const phone = String(req.body.phone || '').replace(/[০-৯]/g, (d) => BN[d]).replace(/[\s-]/g, '').replace(/^\+?88/, '');
+  const email = String(req.body.email || '').trim().toLowerCase().slice(0, 120);
+  const district = String(req.body.district || '').trim().slice(0, 60);
 
   // Resume an unfinished attempt from the same device.
   if (device) {
@@ -284,6 +288,9 @@ r.post('/p/:code/start', asyncH(async (req, res) => {
   if (st === 'upcoming') throw new HttpError(403, 'পরীক্ষা এখনো শুরু হয়নি');
   if (st !== 'open') throw new HttpError(403, 'পরীক্ষা শেষ হয়ে গেছে');
   if (name.length < 2) throw new HttpError(400, 'আপনার নাম লিখুন');
+  if (!/^01[3-9]\d{8}$/.test(phone)) throw new HttpError(400, 'সঠিক মোবাইল নম্বর লিখুন (১১ সংখ্যা, 01 দিয়ে শুরু)');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'সঠিক ইমেইল লিখুন');
+  if (!district) throw new HttpError(400, 'জেলা বেছে নিন');
   if (f.password && String(req.body.password || '').trim() !== f.password) throw new HttpError(403, 'পাসওয়ার্ড সঠিক নয়');
   if (f.one_attempt) {
     const prev = await one(`SELECT token FROM exam_form_submissions WHERE form_id=? AND status='submitted' AND (name_key=? ${device ? 'OR device=?' : ''}) LIMIT 1`,
@@ -304,7 +311,7 @@ r.post('/p/:code/start', asyncH(async (req, res) => {
 
   const token = crypto.randomBytes(16).toString('hex');
   await query('INSERT INTO exam_form_submissions SET ?', [{
-    form_id: f.id, token, name, name_key: nameKey(name), device, ip_hash: ipHash(req), question_order: JSON.stringify({ q, o }),
+    form_id: f.id, token, name, phone, email, district, name_key: nameKey(name), device, ip_hash: ipHash(req), question_order: JSON.stringify({ q, o }),
     answers: JSON.stringify({}), started_at: toSql(now), deadline_at: toSql(deadline),
   }]);
   res.status(201).json(await sessionPayload(f, await one('SELECT * FROM exam_form_submissions WHERE token=?', [token])));
@@ -386,7 +393,7 @@ r.get('/p/:code/leaderboard', asyncH(async (req, res) => {
   if (!f.show_leaderboard || !canSeeResult(f)) return res.json([]);
   await closeExpired(f);
   const rows = await query(
-    `SELECT name, score, total_marks, time_sec FROM exam_form_submissions WHERE form_id=? AND status='submitted' ORDER BY score DESC, time_sec ASC LIMIT 50`, [f.id]);
+    `SELECT name, score, total_marks, time_sec FROM exam_form_submissions WHERE form_id=? AND status='submitted' ORDER BY score DESC, time_sec ASC LIMIT ?`, [f.id, f.leaderboard_limit || 100000]);
   res.json(rows.map((x) => ({ ...x, score: Number(x.score), total_marks: Number(x.total_marks) })));
 }));
 

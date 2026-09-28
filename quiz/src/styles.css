@@ -194,3 +194,7 @@ button.opt:hover { border-color: #a5acf3; }
   .pickrow { grid-template-columns: 1fr 70px 24px; }
 }
 a.center { display: block; }
+
+/* No selecting/copying question text during an exam (answer boxes stay usable). */
+.taking { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.taking input, .taking textarea { -webkit-user-select: text; user-select: text; }

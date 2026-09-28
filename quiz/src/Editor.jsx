@@ -253,13 +253,14 @@ function Settings({ form, save, onDelete, onDuplicate }) {
   const [s, setS] = useState(() => ({
     description: form.description || '', duration_min: form.duration_min, marks_per_q: Number(form.marks_per_q), negative_mark: Number(form.negative_mark),
     pass_mark: form.pass_mark ?? '', shuffle_questions: !!form.shuffle_questions, shuffle_options: !!form.shuffle_options, one_attempt: !!form.one_attempt,
-    show_result: form.show_result, show_answers: !!form.show_answers, show_leaderboard: !!form.show_leaderboard, password: form.password || '',
+    show_result: form.show_result, show_answers: !!form.show_answers, show_leaderboard: !!form.show_leaderboard, leaderboard_limit: form.leaderboard_limit ?? 50, password: form.password || '',
     starts_at: toLocal(form.starts_at), ends_at: toLocal(form.ends_at),
   }));
-  const set = (p) => setS((o) => ({ ...o, ...p }));
-  const submit = (e) => {
+  const [saved, setSaved] = useState(false);
+  const set = (p) => { setSaved(false); setS((o) => ({ ...o, ...p })); };
+  const submit = async (e) => {
     e.preventDefault();
-    save({ ...s, starts_at: s.starts_at ? new Date(s.starts_at).toISOString() : null, ends_at: s.ends_at ? new Date(s.ends_at).toISOString() : null }, 'সেটিং সেভ হয়েছে');
+    setSaved(await save({ ...s, starts_at: s.starts_at ? new Date(s.starts_at).toISOString() : null, ends_at: s.ends_at ? new Date(s.ends_at).toISOString() : null }, 'সেটিং সেভ হয়েছে'));
   };
   const Check = ({ k, children }) => <label className="check"><input type="checkbox" checked={s[k]} onChange={(e) => set({ [k]: e.target.checked })} /> {children}</label>;
 
@@ -298,10 +299,13 @@ function Settings({ form, save, onDelete, onDuplicate }) {
             <option value="never">দেখাবে না (শুধু শিক্ষক দেখবেন)</option>
           </select></label>
         <Check k="show_answers">সঠিক উত্তর ও ব্যাখ্যা দেখাবে</Check>
-        <Check k="show_leaderboard">মেধাতালিকা দেখাবে</Check>
+        <Check k="show_leaderboard">মেধাতালিকা প্রকাশ করবে (পরীক্ষার্থীরা দেখতে পাবে)</Check>
+        {s.show_leaderboard && <label className="field"><span>🏆 মেধাতালিকায় কতজন দেখাবে</span>
+          <input className="input" type="number" min="0" max="1000" value={s.leaderboard_limit} onChange={(e) => set({ leaderboard_limit: e.target.value })} />
+          <span className="tiny muted">যেমন ১০ = শীর্ষ ১০ জন; ০ = সবাই</span></label>}
       </div>
 
-      <div className="row"><button className="btn">✓ সেটিং সেভ করুন</button><span className="spacer" />
+      <div className="row"><button className="btn">✓ সেটিং সেভ করুন</button>{saved && <span className="tone-good small">✅ সেভ হয়েছে</span>}<span className="spacer" />
         <button type="button" className="btn light" onClick={onDuplicate}>⧉ কপি বানান</button>
         <button type="button" className="btn light danger" onClick={() => window.confirm('পরীক্ষা, সব প্রশ্ন ও সব ফলাফল মুছে যাবে। নিশ্চিত?') && onDelete()}>🗑 মুছুন</button></div>
     </form>
@@ -348,8 +352,8 @@ function Results({ form }) {
   const { summary: s, submissions, stats } = data;
   const done = submissions.filter((x) => x.status === 'submitted');
   const exportCsv = () => download(`${form.title}-ফলাফল.csv`, toCsv([
-    ['মেধাক্রম', 'নাম', 'প্রাপ্ত নম্বর', 'পূর্ণমান', 'সঠিক', 'ভুল', 'উত্তর দেয়নি', 'সময় (সেকেন্ড)', 'জমার সময়', ...(form.pass_mark != null ? ['ফলাফল'] : [])],
-    ...done.map((x, i) => [i + 1, x.name, x.score, x.total_marks, x.correct, x.wrong, x.skipped, x.time_sec, new Date(x.submitted_at).toLocaleString('en-GB'),
+    ['মেধাক্রম', 'নাম', 'মোবাইল', 'ইমেইল', 'জেলা', 'প্রাপ্ত নম্বর', 'পূর্ণমান', 'সঠিক', 'ভুল', 'উত্তর দেয়নি', 'সময় (সেকেন্ড)', 'জমার সময়', ...(form.pass_mark != null ? ['ফলাফল'] : [])],
+    ...done.map((x, i) => [i + 1, x.name, x.phone || '', x.email || '', x.district || '', x.score, x.total_marks, x.correct, x.wrong, x.skipped, x.time_sec, new Date(x.submitted_at).toLocaleString('en-GB'),
       ...(form.pass_mark != null ? [x.score >= Number(form.pass_mark) ? 'পাস' : 'ফেল'] : [])]),
   ]));
   const remove = async (x) => {
@@ -376,11 +380,12 @@ function Results({ form }) {
         !submissions.length ? <div className="card center empty"><div className="big-ico">⏳</div><h3>এখনো কেউ পরীক্ষা দেয়নি</h3><p className="muted small">লিংক শেয়ার করুন — কেউ জমা দিলেই এখানে দেখাবে (১৫ সেকেন্ড পরপর আপডেট হয়)।</p></div> : (
           <div className="card table-wrap">
             <table className="table">
-              <thead><tr><th>#</th><th>নাম</th><th>নম্বর</th><th>সঠিক / ভুল / বাদ</th><th>সময়</th><th>জমা</th><th /></tr></thead>
+              <thead><tr><th>#</th><th>নাম</th><th>যোগাযোগ</th><th>নম্বর</th><th>সঠিক / ভুল / বাদ</th><th>সময়</th><th>জমা</th><th /></tr></thead>
               <tbody>{submissions.map((x, i) => (
                 <tr key={x.id}>
                   <td>{x.status === 'submitted' ? bn(i + 1) : '—'}</td>
-                  <td><b>{x.name}</b></td>
+                  <td><b>{x.name}</b>{x.district && <div className="tiny muted">{x.district}</div>}</td>
+                  <td className="tiny">{x.phone}{x.email && <div className="muted">{x.email}</div>}</td>
                   <td>{x.status === 'submitted' ? <><b>{num(x.score)}</b><span className="muted">/{num(x.total_marks)}</span>
                     {form.pass_mark != null && <span className={`badge ${x.score >= Number(form.pass_mark) ? 'good' : 'bad'}`}>{x.score >= Number(form.pass_mark) ? 'পাস' : 'ফেল'}</span>}</> : <span className="badge mid">দিচ্ছে…</span>}</td>
                   <td className="small">{x.status === 'submitted' ? <><span className="tone-good">{bn(x.correct)}</span> / <span className="tone-bad">{bn(x.wrong)}</span> / {bn(x.skipped)}</> : '—'}</td>
