@@ -1,24 +1,39 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
-import Home from './Home.jsx';
-import Play from './Play.jsx';
-import Result from './Result.jsx';
-import { signupUrl } from './lib.js';
+import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import Login from './Login.jsx';
+import Dashboard from './Dashboard.jsx';
+import Editor from './Editor.jsx';
+import Exam from './Exam.jsx';
+import ExamResult from './ExamResult.jsx';
+import { session } from './lib.js';
 import './styles.css';
 
-function Shell({ children }) {
+function StaffShell({ children }) {
+  const nav = useNavigate();
+  const u = session.user;
+  if (!session.token || !['admin', 'teacher'].includes(u?.role)) return <Navigate to="/login" replace />;
   return (
     <>
       <header className="top">
-        <div className="wrap row">
-          <Link to="/" className="brand"><span className="logo">⛰️</span> আরোহণ <span className="tag">কুইজ</span></Link>
+        <div className="wrap wide row">
+          <Link to="/" className="brand"><span className="logo">⛰️</span> আরোহণ <span className="tag">পরীক্ষা</span></Link>
           <span className="spacer" />
-          <a className="btn small accent" href={signupUrl('header')}>ফ্রি অ্যাকাউন্ট</a>
+          <span className="who">{u.name} · {u.role === 'admin' ? 'অ্যাডমিন' : 'শিক্ষক'}</span>
+          <button className="btn small light" onClick={() => { session.clear(); nav('/login'); }}>লগআউট</button>
         </div>
       </header>
+      <main className="wrap wide">{children}</main>
+    </>
+  );
+}
+
+function PublicShell({ children }) {
+  return (
+    <>
+      <header className="top slim"><div className="wrap row"><span className="brand"><span className="logo">⛰️</span> আরোহণ <span className="tag">পরীক্ষা</span></span></div></header>
       <main className="wrap">{children}</main>
-      <footer className="foot wrap">© আরোহণ · প্রতিদিন নতুন কুইজ · <a href={signupUrl('footer')}>পূর্ণ প্রস্তুতি শুরু করুন</a></footer>
+      <footer className="foot wrap">আরোহণ অনলাইন পরীক্ষা</footer>
     </>
   );
 }
@@ -26,15 +41,14 @@ function Shell({ children }) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <Shell>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/play/:kind/:id?" element={<Play />} />
-          <Route path="/c/:code" element={<Play challenge />} />
-          <Route path="/result" element={<Result />} />
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </Shell>
+      <Routes>
+        <Route path="/login" element={<PublicShell><Login /></PublicShell>} />
+        <Route path="/" element={<StaffShell><Dashboard /></StaffShell>} />
+        <Route path="/f/:id/:tab?" element={<StaffShell><Editor /></StaffShell>} />
+        <Route path="/e/:code" element={<PublicShell><Exam /></PublicShell>} />
+        <Route path="/e/:code/r/:token" element={<PublicShell><ExamResult /></PublicShell>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   </StrictMode>,
 );

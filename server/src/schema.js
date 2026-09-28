@@ -706,3 +706,70 @@ schema.push(
   ) ENGINE=InnoDB`,
 );
 columns.push(['users', 'is_active', 'TINYINT(1) NOT NULL DEFAULT 1']);
+
+// ---------- Release 8: link exams (Google-Form-style, built by staff in the quiz app) ----------
+schema.push(
+  `CREATE TABLE IF NOT EXISTS exam_forms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    owner_id INT NOT NULL,
+    code VARCHAR(12) NOT NULL UNIQUE,
+    title VARCHAR(200) NOT NULL,
+    description TEXT NULL,
+    status ENUM('draft','live','closed') NOT NULL DEFAULT 'draft',
+    duration_min INT NOT NULL DEFAULT 0,
+    marks_per_q DECIMAL(6,2) NOT NULL DEFAULT 1,
+    negative_mark DECIMAL(6,2) NOT NULL DEFAULT 0,
+    pass_mark DECIMAL(8,2) NULL,
+    shuffle_questions TINYINT(1) NOT NULL DEFAULT 0,
+    shuffle_options TINYINT(1) NOT NULL DEFAULT 0,
+    one_attempt TINYINT(1) NOT NULL DEFAULT 1,
+    show_result ENUM('immediate','after_end','never') NOT NULL DEFAULT 'immediate',
+    show_answers TINYINT(1) NOT NULL DEFAULT 1,
+    show_leaderboard TINYINT(1) NOT NULL DEFAULT 1,
+    password VARCHAR(60) NULL,
+    starts_at DATETIME NULL,
+    ends_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_ef_owner (owner_id),
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS exam_form_questions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    form_id INT NOT NULL,
+    position INT NOT NULL DEFAULT 0,
+    type ENUM('single','multi','text') NOT NULL DEFAULT 'single',
+    body TEXT NOT NULL,
+    image MEDIUMTEXT NULL,
+    options JSON NULL,
+    answer JSON NOT NULL,
+    marks DECIMAL(6,2) NULL,
+    explanation TEXT NULL,
+    INDEX idx_efq_form (form_id, position),
+    FOREIGN KEY (form_id) REFERENCES exam_forms(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS exam_form_submissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    form_id INT NOT NULL,
+    token VARCHAR(40) NOT NULL UNIQUE,
+    name VARCHAR(80) NOT NULL,
+    name_key VARCHAR(80) NOT NULL,
+    device VARCHAR(40) NULL,
+    ip_hash VARCHAR(64) NULL,
+    status ENUM('in_progress','submitted') NOT NULL DEFAULT 'in_progress',
+    question_order JSON NOT NULL,
+    answers JSON NULL,
+    started_at DATETIME NOT NULL,
+    deadline_at DATETIME NULL,
+    submitted_at DATETIME NULL,
+    time_sec INT NULL,
+    score DECIMAL(8,2) NULL,
+    total_marks DECIMAL(8,2) NULL,
+    correct INT NULL, wrong INT NULL, skipped INT NULL,
+    INDEX idx_efs_form (form_id, status, score),
+    INDEX idx_efs_name (form_id, name_key),
+    FOREIGN KEY (form_id) REFERENCES exam_forms(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+);

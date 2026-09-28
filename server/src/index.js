@@ -14,6 +14,7 @@ import prepRoutes from './routes/prep.js';
 import socialRoutes from './routes/social.js';
 import marketRoutes from './routes/market.js';
 import publicRoutes from './routes/public.js';
+import formRoutes from './routes/forms.js';
 import { ensurePlans } from './services/billing.js';
 
 const app = express();
@@ -32,6 +33,7 @@ app.use('/api/prep', prepRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/forms', formRoutes);
 app.use('/api', communityRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: 'পাওয়া যায়নি' }));

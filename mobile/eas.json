@@ -2,7 +2,7 @@
   "cli": { "appVersionSource": "remote" },
   "build": {
     "development": { "developmentClient": true, "distribution": "internal" },
-    "preview": { "distribution": "internal", "android": { "buildType": "apk" }, "env": { "EXPO_PUBLIC_API_URL": "https://api.example.com" } },
-    "production": { "env": { "EXPO_PUBLIC_API_URL": "https://api.example.com" } }
+    "preview": { "distribution": "internal", "android": { "buildType": "apk" }, "env": { "EXPO_PUBLIC_API_URL": "https://arohonaiapi.bizscal.com", "EXPO_PUBLIC_WEB_URL": "https://arohonai.bizscal.com" } },
+    "production": { "env": { "EXPO_PUBLIC_API_URL": "https://arohonaiapi.bizscal.com", "EXPO_PUBLIC_WEB_URL": "https://arohonai.bizscal.com" } }
   }
 }
