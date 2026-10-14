@@ -4,9 +4,10 @@ import { useAuth } from '../auth.jsx';
 import { useFetch, Loader } from './ui.jsx';
 import { bn, TRACKS } from '../utils.js';
 
-const NAV = [
+export const NAV = [
   { to: '/app', ico: '🏠', label: 'হোম', end: true },
   { to: '/app/practice', ico: '📝', label: 'অনুশীলন' },
+  { to: '/app/bank', ico: '🗄️', label: 'প্রশ্নভান্ডার' },
   { to: '/app/live', ico: '🔴', label: 'লাইভ এক্সাম' },
   { to: '/app/planner', ico: '🗓️', label: 'স্টাডি প্ল্যানার' },
   { to: '/app/mistakes', ico: '🧠', label: 'ভুল ও রিভিশন' },
@@ -24,6 +25,7 @@ const NAV = [
   { to: '/app/leaderboard', ico: '🏆', label: 'লিডারবোর্ড' },
   { to: '/app/history', ico: '🗂️', label: 'পরীক্ষার ইতিহাস' },
   { to: '/app/bookmarks', ico: '🔖', label: 'সংরক্ষিত প্রশ্ন' },
+  { to: '/offline', ico: '📴', label: 'অফলাইন অনুশীলন' },
   { to: '/app/creator', ico: '✍️', label: 'ক্রিয়েটর স্টুডিও' },
   { to: '/app/billing', ico: '💳', label: 'এক্সাম পাস' },
   { to: '/app/profile', ico: '⚙️', label: 'প্রোফাইল ও লক্ষ্য' },

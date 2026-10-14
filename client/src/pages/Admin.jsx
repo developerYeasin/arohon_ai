@@ -5,6 +5,7 @@ import { useAuth } from '../auth.jsx';
 import { useFetch, Loader, ErrorBox, Empty, Modal } from '../components/ui.jsx';
 import { REPORT_REASONS } from '../components/QuestionTools.jsx';
 import { bn, fmtDate, TRACKS } from '../utils.js';
+import SiteAdmin from './SiteAdmin.jsx';
 
 // Staff navigation. `roles` controls who sees each section; the layout builds its menu from this.
 export const STAFF_SECTIONS = [
@@ -14,6 +15,7 @@ export const STAFF_SECTIONS = [
     { key: 'prep', icon: '✍️', label: 'লিখিত ও ভাইভা কনটেন্ট', roles: ['admin', 'teacher'] },
     { key: 'live', icon: '🔴', label: 'লাইভ এক্সাম', roles: ['admin', 'teacher'] },
     { key: 'ca', icon: '📰', label: 'সাম্প্রতিক বিষয়াবলি', roles: ['admin', 'teacher'] },
+    { key: 'site', icon: '🌐', label: 'ওয়েবসাইট কনটেন্ট', roles: ['admin', 'teacher'] },
   ] },
   { group: 'মান নিয়ন্ত্রণ', items: [
     { key: 'reports', icon: '⚠️', label: 'ভুল প্রশ্নের রিপোর্ট', roles: ['admin', 'teacher'] },
@@ -33,6 +35,7 @@ export const STAFF_SECTIONS = [
 const PANELS = {
   overview: () => <Overview />, questions: () => <Questions />, prep: () => <PrepContent />, live: () => <LiveAdmin />, ca: () => <CurrentAffairsAdmin />,
   reports: () => <Reports />, quality: () => <Quality />, students: () => <Students />, expert: () => <ExpertQueue />, payments: () => <Payments />, users: () => <Users />, market: () => <MarketAdmin />,
+  site: () => <SiteAdmin />,
 };
 
 export default function Admin() {

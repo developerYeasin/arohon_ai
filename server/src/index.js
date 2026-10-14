@@ -14,6 +14,8 @@ import prepRoutes from './routes/prep.js';
 import socialRoutes from './routes/social.js';
 import marketRoutes from './routes/market.js';
 import publicRoutes from './routes/public.js';
+import siteRoutes from './routes/site.js';
+import bankRoutes from './routes/bank.js';
 import formRoutes from './routes/forms.js';
 import { ensurePlans } from './services/billing.js';
 
@@ -33,6 +35,8 @@ app.use('/api/prep', prepRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/site', siteRoutes);
+app.use('/api/bank', bankRoutes);
 app.use('/api/forms', formRoutes);
 app.use('/api', communityRoutes);
 

@@ -292,7 +292,7 @@ export async function getMission(user) {
   const subjectIds = subjects.map((s) => s.id);
   const items = [];
   const due = await dueReviewIds(user.id, 15);
-  if (due.length) items.push({ key: 'review', type: 'revision', title: `${due.length}টি ভুল প্রশ্ন রিভিশন`, count: due.length, minutes: Math.ceil(due.length * 0.75) });
+  if (due.length) items.push({ key: 'review', type: 'revision', title: `${toBn(due.length)}টি ভুল প্রশ্ন রিভিশন`, count: due.length, minutes: Math.ceil(due.length * 0.75) });
 
   const stats = await topicStats(user.id, subjectIds);
   const weak = stats.filter((s) => s.attempts >= 3).sort((a, b) => smoothAcc(a.correct, a.attempts) - smoothAcc(b.correct, b.attempts)).slice(0, 3);

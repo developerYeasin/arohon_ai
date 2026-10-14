@@ -157,7 +157,13 @@ r.get('/:id/leaderboard', asyncH(async (req, res) => {
        FROM attempts a JOIN users u ON u.id=a.user_id
       WHERE a.test_id=? AND a.status='submitted' AND a.flagged=0 AND (u.show_on_leaderboard=1 OR u.id=?)
       ORDER BY a.score DESC, a.time_spent_sec ASC LIMIT 200`, [test.id, req.user.id]);
-  res.json({ test: { id: test.id, title: test.title, kind: test.kind, ends_at: test.ends_at }, rows: rows.map((x, i) => ({ ...x, rank: i + 1, score: Number(x.score) })) });
+  // Cut mark = lowest score inside the top 10% of everyone who submitted (hidden profiles included, flagged excluded).
+  // Shown only with at least 20 participants, where it means something.
+  const all = test.kind === 'live'
+    ? await query(`SELECT score FROM attempts WHERE test_id=? AND status='submitted' AND flagged=0 ORDER BY score DESC`, [test.id])
+    : [];
+  const cut = all.length >= 20 ? { score: Number(all[Math.ceil(all.length * 0.1) - 1].score), top_pct: 10, participants: all.length } : null;
+  res.json({ test: { id: test.id, title: test.title, kind: test.kind, ends_at: test.ends_at }, cut_mark: cut, rows: rows.map((x, i) => ({ ...x, rank: i + 1, score: Number(x.score) })) });
 }));
 
 // "Can you beat my score?" — a shareable copy of any test the user finished.

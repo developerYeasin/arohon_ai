@@ -105,8 +105,27 @@ r.post('/change-password', auth, asyncH(async (req, res) => {
 
 r.get('/me', auth, asyncH(async (req, res) => res.json({ user: await withAccess(req.user) })));
 
+// Account overview: lifetime exam totals and membership age for the profile header.
+r.get('/summary', auth, asyncH(async (req, res) => {
+  const s = await one(
+    `SELECT COUNT(*) exams, COALESCE(SUM(total),0) questions, COALESCE(SUM(correct),0) correct, COALESCE(SUM(wrong),0) wrong,
+            COALESCE(SUM(skipped),0) skipped, ROUND(AVG(CASE WHEN total > 0 THEN score * 100 / total END)) avg_pct
+       FROM attempts WHERE user_id=? AND status='submitted'`, [req.user.id]);
+  const days = await one('SELECT GREATEST(DATEDIFF(UTC_TIMESTAMP(), created_at), 0) + 1 d FROM users WHERE id=?', [req.user.id]);
+  const n = (v) => Number(v || 0);
+  res.json({
+    exams: n(s.exams), questions: n(s.questions), correct: n(s.correct), wrong: n(s.wrong), skipped: n(s.skipped),
+    avg_pct: s.avg_pct == null ? null : n(s.avg_pct), member_days: n(days.d),
+  });
+}));
+
 r.put('/me', auth, asyncH(async (req, res) => {
-  const allowed = ['name', 'track', 'target_exam_id', 'exam_date', 'district', 'institution', 'daily_minutes', 'show_on_leaderboard'];
+  const allowed = ['name', 'track', 'target_exam_id', 'exam_date', 'district', 'institution', 'daily_minutes', 'show_on_leaderboard', 'shortcuts'];
+  // Dashboard shortcuts: up to 12 in-app paths, stored as JSON.
+  if (req.body.shortcuts !== undefined) {
+    const list = Array.isArray(req.body.shortcuts) ? req.body.shortcuts : [];
+    req.body.shortcuts = JSON.stringify([...new Set(list.filter((x) => typeof x === 'string' && /^\/app(\/[a-z-]+)?$/.test(x)))].slice(0, 12));
+  }
   const sets = []; const vals = [];
   for (const k of allowed) {
     if (req.body[k] === undefined) continue;

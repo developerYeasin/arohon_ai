@@ -142,7 +142,7 @@ export async function buildReport(attemptId, viewer) {
   if (answers.length) {
     insights.push({ tone: 'info', text: `আপনি প্রায় ${pct(knew, answers.length)}% প্রশ্নের উত্তর জানতেন, কিন্তু পেয়েছেন ${pct(attempt.correct, answers.length)}%।` });
   }
-  if (nonKnowledge >= 2) insights.push({ tone: 'warn', text: `${nonKnowledge}টি প্রশ্নে জ্ঞানের অভাবে নয় — অসাবধানতা, ভুল পড়া, হিসাব বা সময়ের চাপে নম্বর হারিয়েছেন (${(nonKnowledge * (1 + neg)).toFixed(2)} নম্বরের প্রভাব)।` });
+  if (nonKnowledge >= 2) insights.push({ tone: 'warn', text: `${toBn(nonKnowledge)}টি প্রশ্নে জ্ঞানের অভাবে নয় — অসাবধানতা, ভুল পড়া, হিসাব বা সময়ের চাপে নম্বর হারিয়েছেন (${(nonKnowledge * (1 + neg)).toFixed(2)} নম্বরের প্রভাব)।` });
   if (neg > 0 && attempt.wrong > 0) insights.push({ tone: 'warn', text: `নেগেটিভ মার্কিংয়ে কাটা গেছে ${(attempt.wrong * neg).toFixed(2)} নম্বর।` });
 
   const guesses = answered.filter((a) => a.confidence === 'guess');
@@ -150,7 +150,7 @@ export async function buildReport(attemptId, viewer) {
     const rate = guesses.filter((g) => g.is_correct).length / guesses.length;
     const breakEven = neg / (1 + neg);
     insights.push({ tone: rate > breakEven + 0.1 ? 'good' : 'warn',
-      text: `আন্দাজে ${guesses.length}টি উত্তর দিয়েছেন, সঠিক ${Math.round(rate * 100)}%। ${rate > breakEven + 0.1 ? 'আপনার শিক্ষিত আন্দাজ লাভজনক হচ্ছে।' : 'এই হারে আন্দাজ করলে নেগেটিভ মার্কে ক্ষতি হচ্ছে — নিশ্চিত না হলে বাদ দিন।'}` });
+      text: `আন্দাজে ${toBn(guesses.length)}টি উত্তর দিয়েছেন, সঠিক ${toBn(Math.round(rate * 100))}%। ${rate > breakEven + 0.1 ? 'আপনার শিক্ষিত আন্দাজ লাভজনক হচ্ছে।' : 'এই হারে আন্দাজ করলে নেগেটিভ মার্কে ক্ষতি হচ্ছে — নিশ্চিত না হলে বাদ দিন।'}` });
   }
 
   // Accuracy across the timeline of the exam (fatigue / pressure detection).
@@ -169,7 +169,7 @@ export async function buildReport(attemptId, viewer) {
     }
   }
   const slow = answered.filter((a) => a.time_ms > targetSec * 1000 * 1.5).length;
-  if (answered.length && slow / answered.length > 0.3) insights.push({ tone: 'warn', text: `${slow}টি প্রশ্নে লক্ষ্য সময়ের (${targetSec} সেকেন্ড) দেড়গুণের বেশি লেগেছে — গতি একটি বড় ঝুঁকি।` });
+  if (answered.length && slow / answered.length > 0.3) insights.push({ tone: 'warn', text: `${toBn(slow)}টি প্রশ্নে লক্ষ্য সময়ের (${toBn(targetSec)} সেকেন্ড) দেড়গুণের বেশি লেগেছে — গতি একটি বড় ঝুঁকি।` });
   if (answers.length && pct(attempt.correct, answers.length) >= 80) insights.push({ tone: 'good', text: 'চমৎকার! এই সেটে আপনার পারফরম্যান্স খুব ভালো — এখন কঠিন প্রশ্নে যান।' });
 
   // Rank / percentile among everyone who took the same test.

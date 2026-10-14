@@ -779,3 +779,202 @@ columns.push(
   ['exam_form_submissions', 'district', 'VARCHAR(60) NULL'],
   ['exam_forms', 'leaderboard_limit', 'INT NOT NULL DEFAULT 50'],
 );
+
+// PDF ingest pipeline (src/ingest): one row per source file and per page, so a run can stop and resume.
+schema.push(
+  `CREATE TABLE IF NOT EXISTS ingest_files (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sha1 CHAR(40) NOT NULL UNIQUE,
+    path VARCHAR(600) NOT NULL,
+    pages INT NOT NULL,
+    duplicate_of INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS ingest_pages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT NOT NULL,
+    page_no INT NOT NULL,
+    status ENUM('pending','submitted','done','failed','loaded') NOT NULL DEFAULT 'pending',
+    batch_id VARCHAR(80) NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    result JSON NULL,
+    error VARCHAR(500) NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_ingest_page (file_id, page_no),
+    INDEX idx_ingest_status (status, batch_id),
+    FOREIGN KEY (file_id) REFERENCES ingest_files(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+);
+
+// Source text for every ingested page (PDF page, or a whole DOC/DOCX file as page 1), so nothing from the
+// source books is lost even when it does not fit a structured table yet.
+columns.push(
+  ['ingest_files', 'kind', "VARCHAR(10) NOT NULL DEFAULT 'pdf'"],
+  ['ingest_files', 'category', 'VARCHAR(255) NULL'],
+  ['ingest_pages', 'text', 'MEDIUMTEXT NULL'],
+  ['ingest_pages', 'text_stats', 'JSON NULL'],
+  ['ingest_pages', 'text_status', "ENUM('pending','done','needs_visual','failed') NOT NULL DEFAULT 'pending'"],
+  ['ingest_pages', 'parsed_at', 'DATETIME NULL'],
+);
+
+// Everything from the source books that is not a 4-option MCQ: fill in the blanks, true/false, matching,
+// short Q&A, creative (সৃজনশীল) and written questions, and plain notes. Rows keep a link to their source page.
+schema.push(
+  `CREATE TABLE IF NOT EXISTS study_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind ENUM('fill_blank','true_false','matching','short_qa','creative','written','mcq_other','note') NOT NULL,
+    track ENUM('academic','admission','job') NULL,
+    subject_id INT NULL,
+    topic_id INT NULL,
+    class_level VARCHAR(20) NULL,
+    body MEDIUMTEXT NOT NULL,
+    answer MEDIUMTEXT NULL,
+    options JSON NULL,
+    exam_ref VARCHAR(120) NULL,
+    year SMALLINT NULL,
+    source VARCHAR(255) NULL,
+    page_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_si_kind (kind, subject_id),
+    INDEX idx_si_page (page_id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL,
+    FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE SET NULL,
+    FOREIGN KEY (page_id) REFERENCES ingest_pages(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+);
+columns.push(['questions', 'page_id', 'INT NULL'], ['questions', 'class_level', 'VARCHAR(20) NULL']);
+
+// Hash of subject + normalized question text/options (study items: subject + kind + text), so the importer can
+// skip duplicates without re-reading every stored row.
+columns.push(['questions', 'dedup_key', 'CHAR(40) NULL'], ['study_items', 'dedup_key', 'CHAR(40) NULL']);
+
+// ---------- Release 8: public site content ----------
+// Admin-managed pages for the public website: blog, job circulars, notices/routines, resources, FAQ,
+// mentors and success stories, plus newsletter sign-ups and contact/ask-a-mentor messages.
+schema.push(
+  `CREATE TABLE IF NOT EXISTS site_posts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type ENUM('blog','circular','notice','resource') NOT NULL,
+    slug VARCHAR(160) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    excerpt VARCHAR(500) NULL,
+    body MEDIUMTEXT NULL,
+    category VARCHAR(80) NULL,
+    cover_url VARCHAR(500) NULL,
+    link_url VARCHAR(500) NULL,
+    organization VARCHAR(160) NULL,
+    deadline DATE NULL,
+    published TINYINT(1) NOT NULL DEFAULT 1,
+    published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    views INT NOT NULL DEFAULT 0,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sp_type (type, published, published_at),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS site_faqs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(80) NOT NULL DEFAULT 'সাধারণ',
+    question VARCHAR(500) NOT NULL,
+    answer TEXT NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    published TINYINT(1) NOT NULL DEFAULT 1
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS site_people (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind ENUM('advisor','mentor','story') NOT NULL,
+    name VARCHAR(160) NOT NULL,
+    role_line VARCHAR(255) NULL,
+    bio TEXT NULL,
+    photo_url VARCHAR(500) NULL,
+    exam_tag VARCHAR(80) NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    published TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_people (kind, published, sort_order)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(160) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS contact_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind ENUM('contact','question') NOT NULL DEFAULT 'contact',
+    name VARCHAR(120) NOT NULL,
+    contact VARCHAR(160) NOT NULL,
+    subject VARCHAR(255) NULL,
+    message TEXT NOT NULL,
+    status ENUM('new','answered','closed') NOT NULL DEFAULT 'new',
+    reply TEXT NULL,
+    user_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_cm_status (status, created_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+);
+// Public-site follow-ups: video posts, success-story and partnership messages, Q&A answers shown publicly.
+modifications.push(
+  ['site_posts', 'type', "ENUM('blog','circular','notice','resource','video') NOT NULL", "'video'"],
+  ['contact_messages', 'kind', "ENUM('contact','question','story','partnership') NOT NULL DEFAULT 'contact'", "'partnership'"],
+);
+columns.push(['contact_messages', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0'], ['contact_messages', 'topic', 'VARCHAR(80) NULL']);
+
+// Student's own dashboard shortcuts (array of app paths).
+columns.push(['users', 'shortcuts', 'JSON NULL']);
+
+// ---------- Release: per-question classification audit ----------
+// Old topics were mostly source book/sheet names; concept topics live beside them (kind='concept')
+// so nothing is deleted. Every reclassification is logged in classification_audit.
+schema.push(
+  `CREATE TABLE IF NOT EXISTS subtopics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    topic_id INT NOT NULL,
+    name_bn VARCHAR(160) NOT NULL,
+    name_en VARCHAR(160) NOT NULL,
+    UNIQUE KEY uq_subtopic (topic_id, name_en),
+    FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS classification_audit (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    question_id INT NOT NULL,
+    old_subject_id INT NOT NULL,
+    old_topic_id INT NOT NULL,
+    new_subject_id INT NULL,
+    new_topic_id INT NULL,
+    new_subtopic_id INT NULL,
+    confidence TINYINT NULL,
+    cls_status VARCHAR(20) NOT NULL,
+    reason VARCHAR(255) NULL,
+    method VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ca_q (question_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+);
+columns.push(
+  ['topics', 'kind', "ENUM('source','concept') NOT NULL DEFAULT 'source'"],
+  ['questions', 'source_topic_id', 'INT NULL'],
+  ['questions', 'subtopic_id', 'INT NULL'],
+  ['questions', 'q_type', 'VARCHAR(30) NULL'],
+  ['questions', 'language', "ENUM('bn','en','mixed') NULL"],
+  ['questions', 'cls_confidence', 'TINYINT NULL'],
+  ['questions', 'cls_status', "ENUM('unclassified','auto','verified','needs_review','ambiguous','insufficient') NOT NULL DEFAULT 'unclassified'"],
+);
+columns.push(['classification_audit', 'details', 'JSON NULL']);
+// One row per LLM batch request: which questions it carried, so results can be validated against them.
+schema.push(`CREATE TABLE IF NOT EXISTS cls_llm_jobs (
+    batch_id VARCHAR(80) NOT NULL,
+    custom_id VARCHAR(64) NOT NULL,
+    question_ids JSON NOT NULL,
+    collected TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (batch_id, custom_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+// 'auto' = applied by the rule engine or LLM pass; 'verified' is reserved for a human reviewer.
+modifications.push(['questions', 'cls_status', "ENUM('unclassified','auto','verified','needs_review','ambiguous','insufficient') NOT NULL DEFAULT 'unclassified'", "'auto'"]);

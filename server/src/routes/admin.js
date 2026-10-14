@@ -147,7 +147,7 @@ r.get('/question-analytics', asyncH(async (req, res) => {
     if (discrimination != null && discrimination < 0 && q.attempt_count >= 20) flags.push('দুর্বল শিক্ষার্থীরা বেশি পারছে — উত্তর ভুল হতে পারে');
     if (acc < 15 && q.attempt_count >= 10) flags.push('অতিরিক্ত কঠিন/সম্ভাব্য ভুল উত্তর');
     if (topWrong[1] > q.correct_count && q.attempt_count >= 10) flags.push(`বেশিরভাগ '${topWrong[0].toUpperCase()}' দিচ্ছে — অস্পষ্ট হতে পারে`);
-    if (q.report_count >= 2) flags.push(`${q.report_count}টি রিপোর্ট`);
+    if (q.report_count >= 2) flags.push(`${toBn(q.report_count)}টি রিপোর্ট`);
     const empiricalDifficulty = acc >= 80 ? 1 : acc >= 60 ? 2 : acc >= 40 ? 3 : acc >= 20 ? 4 : 5;
     if (Math.abs(empiricalDifficulty - q.difficulty) >= 2 && q.attempt_count >= 20) flags.push(`লেবেল কঠিনতা ${toBn(q.difficulty)}, বাস্তবে ${toBn(empiricalDifficulty)}`);
     return { id: q.id, body: q.body, topic: q.topic, attempts: q.attempt_count, accuracy: acc, skip_rate: pct(q.skip_count, q.attempt_count),

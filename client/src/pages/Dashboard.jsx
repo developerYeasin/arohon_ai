@@ -1,12 +1,47 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { WeekGoal } from './Planner.jsx';
+import { NAV } from '../components/Layout.jsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
-import { useFetch, useStartTest, Loader, ErrorBox, Ring, Bar, Locked } from '../components/ui.jsx';
+import { useFetch, useStartTest, Loader, ErrorBox, Ring, Bar, Locked, Modal } from '../components/ui.jsx';
 import { bn, pctText, fmtDate } from '../utils.js';
 
 export const CONFIDENCE = { low: 'প্রাথমিক অনুমান — আরও অনুশীলনে নির্ভুল হবে', medium: 'মাঝারি নির্ভরযোগ্যতা', high: 'উচ্চ নির্ভরযোগ্যতা' };
+
+const DEFAULT_SHORTCUTS = ['/app/practice', '/app/bank', '/app/live', '/app/mistakes'];
+
+// A row of the student's own favourite sections; editable, saved to their account.
+function MyShortcuts() {
+  const { user, updateProfile } = useAuth();
+  const saved = Array.isArray(user.shortcuts) ? user.shortcuts : null;
+  const [editing, setEditing] = useState(false);
+  const [pick, setPick] = useState(saved || DEFAULT_SHORTCUTS);
+  const [err, setErr] = useState(null);
+  const options = NAV.filter((n) => n.to && n.to !== '/app' && n.to.startsWith('/app'));
+  const items = (saved || DEFAULT_SHORTCUTS).map((to) => options.find((n) => n.to === to)).filter(Boolean);
+  const toggle = (to) => setPick((p) => (p.includes(to) ? p.filter((x) => x !== to) : p.length >= 12 ? p : [...p, to]));
+  const save = async () => {
+    setErr(null);
+    try { await updateProfile({ shortcuts: pick }); setEditing(false); } catch (e) { setErr(e.message); }
+  };
+  return (
+    <div className="card">
+      <div className="row between"><h3 style={{ margin: 0 }}>⭐ আমার শর্টকাট</h3><button className="btn light sm" onClick={() => { setPick(saved || DEFAULT_SHORTCUTS); setEditing(true); }}>সাজান</button></div>
+      <div className="shortcut-grid mt">
+        {items.map((n) => <Link key={n.to} to={n.to} className="shortcut"><span className="ico">{n.ico}</span>{n.label}</Link>)}
+        <Link to="/offline" className="shortcut"><span className="ico">📴</span>অফলাইন</Link>
+      </div>
+      <Modal open={editing} onClose={() => setEditing(false)} title="শর্টকাট বেছে নিন (সর্বোচ্চ ১২টি)">
+        <ErrorBox error={err} />
+        <div className="grid g2">{options.map((n) => (
+          <label key={n.to} className="row small"><input type="checkbox" checked={pick.includes(n.to)} onChange={() => toggle(n.to)} /> {n.ico} {n.label}</label>
+        ))}</div>
+        <button className="btn mt" onClick={save}>সংরক্ষণ করুন</button>
+      </Modal>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -41,6 +76,7 @@ export default function Dashboard() {
           <span className="xp-pill">লেভেল {bn(data.user.level)}</span>
         </div>
       </div>
+      <MyShortcuts />
       <ErrorBox error={startErr} />
       {!badgesSeen && data.new_badges?.length > 0 && (
         <div className="alert good row between">

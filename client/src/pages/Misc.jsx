@@ -201,6 +201,89 @@ function ChangePassword() {
   );
 }
 
+const greeting = () => {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Dhaka' }).format(new Date()));
+  return h < 5 ? 'শুভ রাত্রি' : h < 12 ? 'শুভ সকাল' : h < 16 ? 'শুভ দুপুর' : h < 18 ? 'শুভ বিকেল' : h < 20 ? 'শুভ সন্ধ্যা' : 'শুভ রাত্রি';
+};
+const TIER_NAME = { pro: null, trial: 'ফ্রি ট্রায়াল', free: 'ফ্রি প্ল্যান', staff: 'স্টাফ অ্যাকাউন্ট' };
+const QUICK_LINKS = [
+  ['/app/live', '🔴', 'লাইভ পরীক্ষা', 'নির্ধারিত সময়ে সবার সাথে পরীক্ষা'],
+  ['/app/current-affairs', '📰', 'সাম্প্রতিক বিষয়াবলি', 'খবর থেকে তথ্য ও MCQ'],
+  ['/app/leaderboard', '🏆', 'লিডারবোর্ড', 'জেলা ও দেশে আপনার অবস্থান'],
+  ['/app/coach', '🧭', 'AI কোচ', 'আজ কী পড়বেন, কেন নম্বর কমছে'],
+  ['/app/library', '📚', 'লাইব্রেরি', 'নোট ও স্টাডি ম্যাটেরিয়াল'],
+  ['/app/billing', '💳', 'প্ল্যান ও পেমেন্ট', 'পেমেন্টের ইতিহাস ও আপগ্রেড'],
+];
+
+function AccountOverview() {
+  const { user, logout } = useAuth();
+  const { data: s } = useFetch('/auth/summary');
+  const { data: ref } = useFetch('/social/referral');
+  const [copied, setCopied] = useState(false);
+  const a = user.access || {};
+  const pct = (v) => (s?.questions ? Math.round((v * 100) / s.questions) : 0);
+  const copyRef = async () => {
+    const link = `${window.location.origin}/register?ref=${ref.code}`;
+    try { await navigator.clipboard.writeText(link); setCopied(true); } catch { setCopied(false); }
+  };
+  return (
+    <div className="stack">
+      <div className="card hero-card">
+        <div className="row between" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div className="small muted">{greeting()} 👋</div>
+            <h1 style={{ margin: '.2rem 0 .5rem' }}>{user.name}</h1>
+            <div className="row small" style={{ flexWrap: 'wrap', gap: '.4rem 1.2rem' }}>
+              {user.phone && <span>📱 {user.phone}</span>}
+              {user.email && <span>✉️ {user.email}</span>}
+              <span>🆔 আইডি: <b>{bn(user.id)}</b></span>
+            </div>
+          </div>
+          {ref && <button className="btn light sm" onClick={copyRef}>{copied ? '✓ রেফারেল লিংক কপি হয়েছে' : '🎁 রেফারেল লিংক কপি করুন'}</button>}
+        </div>
+      </div>
+
+      <div className="grid g-main">
+        <div className="grid g2">
+          <div className="card">
+            <div className="small muted">বর্তমান প্ল্যান</div>
+            <div className="stat"><span className="v">{a.plan_name || TIER_NAME[a.tier] || '—'}</span>
+              <span className="l">{a.until ? `মেয়াদ: ${fmtDate(a.until)} পর্যন্ত` : a.tier === 'free' ? 'সীমিত দৈনিক ব্যবহার' : 'মেয়াদের সীমা নেই'}</span></div>
+            <Link to="/app/billing" className="btn ghost sm mt">প্ল্যান দেখুন</Link>
+          </div>
+          <div className="card">
+            <div className="small muted">পরীক্ষার হিসাব</div>
+            <div className="stat"><span className="v">{bn(s?.exams ?? 0)}টি পরীক্ষা</span>
+              <span className="l">মোট প্রশ্ন {bn(s?.questions ?? 0)} · গড় স্কোর {s?.avg_pct == null ? '—' : `${bn(s.avg_pct)}%`}</span>
+              <span className="l">সঠিক {bn(s?.correct ?? 0)} ({bn(pct(s?.correct))}%) · ভুল {bn(s?.wrong ?? 0)} ({bn(pct(s?.wrong))}%)</span></div>
+            <Link to="/app/history" className="btn ghost sm mt">ইতিহাস দেখুন</Link>
+          </div>
+          <div className="card">
+            <div className="small muted">আরোহণের সাথে</div>
+            <div className="stat"><span className="v">{bn(s?.member_days ?? 1)} দিন</span>
+              <span className="l">{user.streak > 0 ? `টানা ${bn(user.streak)} দিন পড়ছেন — ধারাটা ধরে রাখুন।` : 'আজ একটা ছোট সেশন দিয়ে ধারা শুরু করুন।'}</span></div>
+          </div>
+          <div className="card">
+            <div className="small muted">প্রস্তুতি</div>
+            <div className="stat"><span className="v">এখনই পরীক্ষা দিন</span><span className="l">আপনার দুর্বল টপিক থেকে বাছাই করা প্রশ্ন।</span></div>
+            <Link to="/app/practice" className="btn sm mt">শুরু করুন</Link>
+          </div>
+        </div>
+        <aside className="card">
+          <h3>⚡ দ্রুত যান</h3>
+          {QUICK_LINKS.map(([to, ico, label, sub]) => (
+            <Link key={to} to={to} className="row" style={{ padding: '.5rem 0', borderBottom: '1px dashed var(--line)', color: 'inherit', textDecoration: 'none' }}>
+              <span style={{ fontSize: '1.2rem' }}>{ico}</span>
+              <span><b className="small">{label}</b><br /><span className="tiny muted">{sub}</span></span>
+            </Link>
+          ))}
+          <button className="btn light sm mt" onClick={logout}>লগ আউট</button>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 export function Profile() {
   const { user, updateProfile } = useAuth();
   const { data: exams } = useFetch('/catalog/exams');
@@ -217,6 +300,7 @@ export function Profile() {
   const STATUS = { open: ['পর্যালোচনাধীন', 'mid'], verified_ok: ['যাচাই: প্রশ্ন সঠিক', 'gray'], fixed: ['সংশোধিত ✓', 'good'], rejected: ['বাতিল', 'gray'] };
   return (
     <div className="stack">
+    <AccountOverview />
     <div className="grid g2">
       <form className="card" onSubmit={save}>
         <h3>⚙️ প্রোফাইল ও লক্ষ্য</h3>

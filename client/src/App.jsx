@@ -44,6 +44,29 @@ const Intelligence = lazy(() => import('./pages/Misc.jsx').then((m) => ({ defaul
 const History = lazy(() => import('./pages/Misc.jsx').then((m) => ({ default: m.History })));
 const Bookmarks = lazy(() => import('./pages/Misc.jsx').then((m) => ({ default: m.Bookmarks })));
 const QuestionPage = lazy(() => import('./pages/Misc.jsx').then((m) => ({ default: m.QuestionPage })));
+const About = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.About })));
+const Features = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Features })));
+const Packages = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Packages })));
+const Mentors = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Mentors })));
+const HallOfFame = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.HallOfFame })));
+const Faq = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Faq })));
+const PostList = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.PostList })));
+const PostDetail = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.PostDetail })));
+const Ask = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Ask })));
+const Contact = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Contact })));
+const Referral = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Referral })));
+const Search = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Search })));
+const Privacy = lazy(() => import('./pages/Site.jsx').then((m) => ({ default: m.Privacy })));
+const ExamPage = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.ExamPage })));
+const DemoExam = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.DemoExam })));
+const PackageDetail = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.PackageDetail })));
+const Omr = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.Omr })));
+const ResourcesHub = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.ResourcesHub })));
+const Partnership = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.Partnership })));
+const Routine = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.Routine })));
+const Help = lazy(() => import('./pages/SiteExtra.jsx').then((m) => ({ default: m.Help })));
+const QuestionBank = lazy(() => import('./pages/QuestionBank.jsx'));
+const Offline = lazy(() => import('./pages/Offline.jsx'));
 const Profile = lazy(() => import('./pages/Misc.jsx').then((m) => ({ default: m.Profile })));
 
 const isStaff = (u) => ['admin', 'teacher'].includes(u?.role);
@@ -68,11 +91,42 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/features" element={<Features />} />
+      <Route path="/packages" element={<Packages />} />
+      <Route path="/mentors" element={<Mentors />} />
+      <Route path="/hall-of-fame" element={<HallOfFame />} />
+      <Route path="/faq" element={<Faq />} />
+      <Route path="/ask" element={<Ask />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/referral" element={<Referral />} />
+      <Route path="/search" element={<Search />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/blog" element={<PostList key="blog" type="blog" />} />
+      <Route path="/blog/:slug" element={<PostDetail type="blog" />} />
+      <Route path="/circulars" element={<PostList key="circular" type="circular" />} />
+      <Route path="/circulars/:slug" element={<PostDetail type="circular" />} />
+      <Route path="/notices" element={<PostList key="notice" type="notice" />} />
+      <Route path="/notices/:slug" element={<PostDetail type="notice" />} />
+      <Route path="/resources" element={<ResourcesHub />} />
+      <Route path="/resources/pdf" element={<PostList key="resource" type="resource" />} />
+      <Route path="/resources/pdf/:slug" element={<PostDetail type="resource" />} />
+      <Route path="/resources/videos" element={<PostList key="video" type="video" />} />
+      <Route path="/resources/videos/:slug" element={<PostDetail type="video" />} />
+      <Route path="/exams/:code" element={<ExamPage />} />
+      <Route path="/demo-exam" element={<DemoExam />} />
+      <Route path="/packages/:code" element={<PackageDetail />} />
+      <Route path="/omr" element={<Omr />} />
+      <Route path="/routine" element={<Routine />} />
+      <Route path="/help" element={<Help />} />
+      <Route path="/partnership" element={<Partnership />} />
       <Route path="/forgot" element={<Forgot />} />
+      <Route path="/offline" element={<Offline />} />
       <Route path="/exam/:testId" element={<RequireAuth><ExamPlayer /></RequireAuth>} />
       <Route path="/app" element={<RequireAuth studentArea><Layout /></RequireAuth>}>
         <Route index element={<Dashboard />} />
         <Route path="practice" element={<Practice />} />
+        <Route path="bank" element={<QuestionBank />} />
         <Route path="result/:attemptId" element={<Result />} />
         <Route path="mistakes" element={<Mistakes />} />
         <Route path="analytics" element={<Analytics />} />

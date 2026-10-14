@@ -11,7 +11,8 @@ export function AuthProvider({ children }) {
     const onLogout = () => setUser(null);
     window.addEventListener('arohon:logout', onLogout);
     if (!tokenStore.get()) setReady(true);
-    else api.get('/auth/me').then((d) => setUser(d.user)).catch(() => tokenStore.set(null)).finally(() => setReady(true));
+    // Only a rejected token logs the user out; a network failure (offline) keeps them signed in.
+    else api.get('/auth/me').then((d) => setUser(d.user)).catch((e) => { if (e.status === 401) tokenStore.set(null); }).finally(() => setReady(true));
     return () => window.removeEventListener('arohon:logout', onLogout);
   }, []);
 

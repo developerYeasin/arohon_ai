@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useFetch } from '../components/ui.jsx';
 import { bn, TRACKS } from '../utils.js';
-import { PRO_FEATURES, FREE_FEATURES } from '../features.js';
+import PublicLayout from '../components/PublicLayout.jsx';
+import { HowItWorks, CtaBand, PackageGrid, PeopleGrid, FaqList, PostCard } from './Site.jsx';
 
 const FEATURES = [
   { i: '🎯', t: 'এক্সাম রেডিনেস স্কোর', d: 'শুধু "৭২/১০০" নয় — বিষয়ভিত্তিক প্রস্তুতি, গতি, নির্ভুলতা, ধারাবাহিকতা, আনুমানিক প্রাপ্ত নম্বর ও সবচেয়ে বড় ঝুঁকি।' },
@@ -33,24 +34,14 @@ export default function Landing() {
   const { user } = useAuth();
   const { data: exams } = useFetch('/catalog/exams');
   const { data: stats } = useFetch('/catalog/stats');
-  const { data: billing } = useFetch('/billing/plans');
+  const { data: circulars } = useFetch('/site/posts?type=circular&limit=6');
+  const { data: guides } = useFetch('/site/posts?type=blog&limit=3');
+  const { data: people } = useFetch('/site/people');
   const home = ['admin', 'teacher'].includes(user?.role) ? '/admin' : '/app';
   const cta = user ? home : '/register';
 
   return (
-    <div>
-      <header className="pub-header">
-        <div className="container">
-          <Link to="/" className="brand" style={{ padding: 0 }}><span className="logo">⛰️</span><span>আরোহণ</span></Link>
-          <nav><a href="#tracks">পরীক্ষাসমূহ</a><a href="#features">ফিচারসমূহ</a><a href="#different">কেন আলাদা</a><a href="#pricing">প্যাকেজ</a></nav>
-          <div className="spacer" />
-          {user ? <Link className="btn accent" to={home}>ড্যাশবোর্ড</Link> : <>
-            <Link to="/login" style={{ color: '#fff', fontWeight: 600 }}>লগইন</Link>
-            <Link className="btn accent" to="/register">ফ্রি শুরু করুন</Link>
-          </>}
-        </div>
-      </header>
-
+    <PublicLayout>
       <section className="hero">
         <div className="container hero-grid">
           <div>
@@ -59,7 +50,7 @@ export default function Landing() {
             <p className="lead">আরোহণ জানে আপনি কোন টপিকে দুর্বল, কেন নম্বর হারাচ্ছেন, আর আজ ঠিক কী পড়লে সবচেয়ে বেশি লাভ — বিসিএস, ব্যাংক, প্রাইমারি, NTRCA, ঢাবি-মেডিকেল-গুচ্ছ ভর্তি এবং এসএসসি-এইচএসসির জন্য।</p>
             <div className="row mt">
               <Link className="btn accent lg" to={cta}>ডায়াগনস্টিক টেস্ট দিন — ফ্রি</Link>
-              <a className="btn ghost lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,.35)' }} href="#features">কীভাবে কাজ করে</a>
+              <Link className="btn ghost lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,.35)' }} to="/demo-exam">লগইন ছাড়া ডেমো পরীক্ষা</Link>
             </div>
           </div>
           <div className="hero-mock" aria-label="রেডিনেস রিপোর্টের উদাহরণ">
@@ -73,6 +64,10 @@ export default function Landing() {
             ))}
             <div className="small mt" style={{ color: '#fcd34d' }}>⚠ সবচেয়ে বড় ঝুঁকি: সময়ের চাপে গতি কম</div>
             <div className="small" style={{ color: '#c9cdf0' }}>→ পরামর্শ: গণিত (বীজগণিত) — ৩ দিনের রিকভারি প্ল্যান</div>
+            {circulars?.rows.length > 0 && <div className="ticker mt">
+              <div className="row between"><b className="small">📢 সাম্প্রতিক সার্কুলার</b><Link to="/circulars" className="tiny" style={{ color: '#fcd34d' }}>সব দেখুন →</Link></div>
+              {circulars.rows.map((c) => <Link key={c.id} to={`/circulars/${c.slug}`}>{c.title}</Link>)}
+            </div>}
           </div>
         </div>
         <div className="container">
@@ -94,7 +89,7 @@ export default function Landing() {
               <h3>{TRACKS[t].icon} {TRACKS[t].bn} <span className="muted small" style={{ fontWeight: 400 }}>— {TRACKS[t].desc}</span></h3>
               <div className="grid g4">
                 {exams?.filter((e) => e.track === t).map((e) => (
-                  <Link key={e.id} to={cta} className="exam-tile">
+                  <Link key={e.id} to={`/exams/${e.code}`} className="exam-tile">
                     <span className="dot" style={{ background: e.color || 'var(--brand)' }}>{e.name_bn.slice(0, 1)}</span>
                     <b>{e.name_bn}</b>
                     <span className="small muted">{e.description}</span>
@@ -107,13 +102,14 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="section" id="features" style={{ background: '#fff' }}>
+      <section className="section alt" id="features">
         <div className="container">
           <h2>যা আপনাকে সত্যিই এগিয়ে দেয়</h2>
           <p className="sub">আরও বেশি MCQ নয় — প্রতিটি প্রশ্ন থেকে আরও বেশি শেখা।</p>
           <div className="grid g3">
             {FEATURES.map((f) => <div key={f.t} className="card feature"><div className="fi">{f.i}</div><h3>{f.t}</h3><p className="muted small" style={{ margin: 0 }}>{f.d}</p></div>)}
           </div>
+          <div className="center mt2"><Link to="/features" className="btn ghost">সব ফিচার দেখুন →</Link></div>
         </div>
       </section>
 
@@ -141,43 +137,60 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="section" id="pricing" style={{ background: '#fff' }}>
+      <HowItWorks />
+
+      <section className="section" id="pricing">
         <div className="container">
           <h2>প্যাকেজ</h2>
-          <p className="sub">অনুশীলন, লাইভ এক্সাম, ব্যাখ্যা ও ভুল রিপোর্ট সবসময় ফ্রি। ব্যক্তিগত বিশ্লেষণের জন্য এক্সাম পাস — bKash / Nagad / Rocket-এ, কোনো অটো-রিনিউ নেই। নতুনদের জন্য {bn(billing?.trial_days ?? 7)} দিনের ফ্রি ট্রায়াল।</p>
-          <div className="grid g-main">
-            <div className="card">
-              <h3>ফ্রি — সবসময়</h3>
-              <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>৳০</div>
-              <ul className="small" style={{ paddingLeft: '1.1rem' }}>{FREE_FEATURES.map((l) => <li key={l}>{l}</li>)}</ul>
-              <Link to={cta} className="btn block ghost">ফ্রি শুরু করুন</Link>
-            </div>
-            <div className="card" style={{ borderColor: 'var(--brand)', borderWidth: 2 }}>
-              <h3>⭐ এক্সাম পাস</h3>
-              <div className="grid g2">
-                {billing?.plans.map((p) => (
-                  <div key={p.code} className="dim">
-                    {p.highlight && <span className="badge accent">{p.highlight}</span>}
-                    <div className="small" style={{ fontWeight: 600 }}>{p.name_bn.replace('এক্সাম পাস — ', '')}</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>৳{bn(p.price_bdt)}</div>
-                  </div>
-                ))}
-              </div>
-              <ul className="small mt" style={{ paddingLeft: '1.1rem' }}>{PRO_FEATURES.map((l) => <li key={l}>{l}</li>)}</ul>
-              <Link to={user ? '/app/billing' : '/register'} className="btn block">{user ? 'এক্সাম পাস নিন' : `${bn(billing?.trial_days ?? 7)} দিন ফ্রি ট্রায়াল`}</Link>
-            </div>
-          </div>
+          <p className="sub">অনুশীলন, লাইভ এক্সাম, ব্যাখ্যা ও ভুল রিপোর্ট সবসময় ফ্রি। ব্যক্তিগত বিশ্লেষণের জন্য এক্সাম পাস — bKash / Nagad / Rocket-এ, কোনো অটো-রিনিউ নেই।</p>
+          <PackageGrid />
           <p className="center tiny muted mt">কোনো প্যাকেজই চাকরি বা ভর্তির নিশ্চয়তা দেয় না — আমরা দিই সঠিক প্রস্তুতির পথ।</p>
         </div>
       </section>
 
-      <footer className="footer">
-        <div className="container row between">
-          <div><b style={{ color: '#fff' }}>⛰️ আরোহণ</b><div className="small">একাডেমিক · ভর্তি · চাকরি — পরীক্ষা প্রস্তুতির ব্যক্তিগত সিস্টেম</div></div>
-          <div className="row small"><Link to="/terms">শর্তাবলি ও রিফান্ড</Link><Link to="/login">লগইন</Link><Link to="/register">রেজিস্ট্রেশন</Link><a href="#features">ফিচার</a></div>
+      {people?.some((p) => p.kind !== 'story') && (
+        <section className="section alt">
+          <div className="container">
+            <h2>মেন্টর ও উপদেষ্টা</h2>
+            <p className="sub">প্রশ্ন যাচাই, ব্যাখ্যা আর প্রস্তুতির গাইড যাঁরা দেখেন।</p>
+            <PeopleGrid kind={people.some((p) => p.kind === 'mentor') ? 'mentor' : 'advisor'} limit={8} />
+            <div className="center mt2"><Link to="/mentors" className="btn ghost">সবাইকে দেখুন →</Link></div>
+          </div>
+        </section>
+      )}
+
+      {guides?.rows.length > 0 && (
+        <section className="section">
+          <div className="container">
+            <h2>প্রস্তুতির গাইড</h2>
+            <p className="sub">লক্ষ্য পরীক্ষা অনুযায়ী কোথা থেকে শুরু করবেন, কী বাদ দেবেন।</p>
+            <div className="grid g3">{guides.rows.map((p) => <PostCard key={p.id} p={p} />)}</div>
+            <div className="center mt2"><Link to="/blog" className="btn ghost">সব গাইড →</Link></div>
+          </div>
+        </section>
+      )}
+
+      {people?.some((p) => p.kind === 'story') && (
+        <section className="section alt">
+          <div className="container">
+            <h2>সফলতার গল্প</h2>
+            <div className="grid g3">{people.filter((p) => p.kind === 'story').slice(0, 3).map((p) => (
+              <div key={p.id} className="card"><b>{p.name}</b><div className="small muted">{p.role_line}</div>{p.bio && <p className="small">“{p.bio}”</p>}</div>
+            ))}</div>
+            <div className="center mt2"><Link to="/hall-of-fame" className="btn ghost">সব গল্প →</Link></div>
+          </div>
+        </section>
+      )}
+
+      <section className="section">
+        <div className="container" style={{ maxWidth: 860 }}>
+          <h2>প্রশ্নোত্তর</h2>
+          <div className="card mt"><FaqList limit={6} /></div>
+          <div className="center mt"><Link to="/faq">সব প্রশ্নোত্তর →</Link></div>
         </div>
-        <div className="container tiny mt">© {bn(new Date().getFullYear())} আরোহণ</div>
-      </footer>
-    </div>
+      </section>
+
+      <CtaBand />
+    </PublicLayout>
   );
 }

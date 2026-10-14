@@ -61,6 +61,17 @@ export function TestLeaderboard() {
   return (
     <div className="stack">
       <div className="page-head"><div><h1>🏆 {data.test.title}</h1><p>স্কোর সমান হলে কম সময় নেওয়া পরীক্ষার্থী এগিয়ে।</p></div></div>
+      {data.cut_mark && (() => {
+        const mine = data.rows.find((r) => r.user_id === user.id);
+        return (
+          <div className="card row between">
+            <div className="stat"><span className="v">✂️ {bn(data.cut_mark.score)}</span>
+              <span className="l">কাট মার্ক — {bn(data.cut_mark.participants)} জনের মধ্যে শীর্ষ {bn(data.cut_mark.top_pct)}% এর সর্বনিম্ন নম্বর</span></div>
+            {mine && <span className={`badge ${mine.score >= data.cut_mark.score ? 'good' : 'mid'}`}>
+              {mine.score >= data.cut_mark.score ? 'আপনি কাট মার্কের উপরে' : `কাট মার্ক থেকে ${bn(Math.round((data.cut_mark.score - mine.score) * 100) / 100)} নম্বর পিছিয়ে`}</span>}
+          </div>
+        );
+      })()}
       <div className="card table-wrap">
         {data.rows.length === 0 ? <Empty title="এখনো কেউ জমা দেননি" /> : (
           <table className="table">
